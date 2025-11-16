@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZenithGuard - Page Analysis</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="../css/analyzer.css">
+    <style>
+        /* Additional page-specific styles */
+        body { background-color: var(--bg-primary); color: var(--text-primary); }
+        .container { max-width: 900px; margin: 2rem auto; padding: 1rem; }
+        .scan-controls { text-align: center; margin-bottom: 2rem; }
+        #start-scan-btn {
+            background-color: var(--accent-primary);
+            color: var(--accent-text);
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #scan-status-message {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            height: 1.2rem; /* Reserve space */
+        }
+        #report-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        #report-header h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        #report-header p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Persistent Header -->
+        <div class="scan-controls">
+            <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">AI Page Analyzer</h1>
+            <p id="page-domain" style="color: var(--text-secondary); margin-bottom: 1.5rem;">Analyzing...</p>
+            <button id="start-scan-btn">Scan Page</button>
+            <p id="scan-status-message"></p>
+        </div>
+
+        <!-- Content Area: State is controlled by class -->
+        <div id="content-area">
+            <!-- Loading State -->
+            <div class="loading-view" style="text-align: center; margin-top: 2rem;">
+                <div class="loader"></div>
+                <p id="loading-message" style="margin-top: 1rem; color: var(--text-secondary);">Initializing scan...</p>
+            </div>
+
+            <!-- Generic Error State -->
+            <div class="error-view">
+                <h3>Analysis Failed</h3>
+                <p id="error-message">An unknown error occurred.</p>
+                <button id="retry-scan-btn">Try Again</button>
+            </div>
+
+            <!-- NEW: Quota Error State -->
+            <div class="quota-error-view">
+                <h3>AI Quota Reached</h3>
+                <p>You've exceeded the daily usage limit for the Gemini API's free tier. AI features will be available again when the quota resets (usually within 24 hours).</p>
+                <p>For higher limits, please check your <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank">plan and billing details</a>.</p>
+            </div>
+
+            <!-- Report State -->
+            <div class="report-view">
+                <div id="report-header">
+                    <h1>Analysis Complete</h1>
+                    <p id="report-page-domain"></p>
+                </div>
+
+                <div class="summary-header">
+                    <div class="privacy-grade-container">
+                         <svg width="150" height="150" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" class="gauge-background" stroke-width="12" />
+                            <circle cx="60" cy="60" r="54" class="gauge-arc" stroke-width="12"
+                                    transform="rotate(-90 60 60)"
+                                    stroke-dasharray="0, 339.292"
+                                    stroke-dashoffset="0" />
+                            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="gauge-text">F</text>
+                        </svg>
+                    </div>
+                    <div class="summary-details">
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <h3 class="summary-title">Network Threats</h3>
+                                <p id="summary-network-threats" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Visual Annoyances</h3>
+                                <p id="summary-visual-annoyances" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Heuristic Issues</h3>
+                                <p id="summary-heuristic-issues" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Dark Patterns</h3>
+                                <p id="summary-dark-patterns" class="summary-value">0</p>
+                            </div>
+                        </div>
+                        <button id="apply-all-fixes-btn" class="btn-apply-all hidden">Apply All AI Fixes</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h2 class="card-title">Network Threats</h2>
+                    <div id="network-threats-content"></div>
+                </div>
+                <div class="report-card">
+                    <h2 class="card-title">AI Visual Suggestions</h2>
+                    <div id="visual-suggestions-content"></div>
+                </div>
+                 <div class="report-card">
+                    <h2 class="card-title">Heuristic Keywords Found</h2>
+                    <div id="heuristic-keywords-content"></div>
+                </div>
+                 <div class="report-card">
+                    <h2 class="card-title">Dark Patterns Detected</h2>
+                    <div id="dark-patterns-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/analyzer/analyzer.js"></script>
+</body>
+</html>

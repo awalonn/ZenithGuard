@@ -1,0 +1,133 @@
+/* onboarding.css */
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: sans-serif;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 700px;
+    padding: 40px;
+    text-align: center;
+}
+
+.header {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.header img {
+    width: 64px;
+    height: 64px;
+}
+
+.header h1 {
+    font-size: 48px;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin: 0;
+}
+
+h2 {
+    font-size: 24px;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+p {
+    color: var(--text-secondary);
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 30px;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+    margin-bottom: 40px;
+    text-align: left;
+}
+
+.feature-card {
+    background-color: var(--bg-secondary);
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.feature-card h3 {
+    margin: 0 0 10px 0;
+    font-size: 18px;
+    color: var(--accent-primary);
+}
+
+.feature-card p {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 0;
+}
+
+.setup-section {
+    background-color: var(--bg-secondary);
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.api-key-container {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    max-width: 500px;
+    margin: 20px auto 0 auto;
+}
+
+.api-key-container input {
+    flex-grow: 1;
+    padding: 12px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.btn {
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background-color: var(--accent-primary);
+    color: var(--accent-text);
+}
+.btn-primary:hover {
+    filter: brightness(1.1);
+}
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.inline-link {
+    color: var(--accent-primary);
+    text-decoration: underline;
+    font-weight: bold;
+}
+
+.hidden {
+    display: none;
+}

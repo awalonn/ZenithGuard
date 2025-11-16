@@ -1,0 +1,63 @@
+/* logger.css */
+body { font-family: sans-serif; background-color: #1f2937; color: #f9fafb; margin: 0; padding: 20px; font-size: 14px; }
+.container { max-width: 1200px; margin: 0 auto; }
+header { margin-bottom: 20px; border-bottom: 1px solid #4b5563; padding-bottom: 15px; }
+header h1 { color: #00E5FF; margin: 0 0 5px 0; }
+header p { color: #9ca3af; margin: 0; }
+#tab-title { font-weight: bold; color: #e5e7eb; }
+.toolbar { display: flex; align-items: center; gap: 15px; margin-bottom: 20px; }
+#filter-input { flex-grow: 1; padding: 8px; background-color: #374151; border: 1px solid #4b5563; color: white; border-radius: 4px; }
+.filter-buttons button { background-color: #374151; color: #d1d5db; border: 1px solid #4b5563; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
+.filter-buttons button.active, .filter-buttons button:hover { background-color: #00E5FF; color: #1A237E; border-color: #00E5FF; font-weight: bold; }
+#clear-log-btn { background-color: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+
+.log-container { background-color: #111827; border: 1px solid #4b5563; border-radius: 6px; overflow-x: hidden; overflow-y: auto; max-height: 70vh;}
+.log-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px; table-layout: fixed; }
+.log-table th, .log-table td { padding: 8px 10px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-table th { font-weight: bold; background-color: #374151; border-bottom: 1px solid #4b5563; }
+.log-table tbody tr { border-bottom: 1px solid #283345; }
+.log-table tbody tr:last-child { border-bottom: none; }
+.log-table .status { width: 80px; text-align: center; }
+.log-table .url { max-width: 400px; word-break: break-all; }
+.log-table .type { width: 100px; }
+.log-table .initiator { max-width: 300px; color: #9ca3af; }
+.log-table .actions { width: 100px; text-align: center; }
+.log-table .source { width: 150px; } /* NEW */
+
+.status-badge { padding: 3px 6px; border-radius: 4px; font-weight: bold; color: white; display: inline-block; }
+.status-badge.blocked { background-color: #ef4444; }
+.status-badge.allowed { background-color: #22c55e; }
+
+/* NEW: Source Badge */
+.source-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 12px;
+    background-color: #4b5563;
+    color: #e5e7eb;
+}
+
+
+/* NEW: Block Button */
+.block-btn {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 12px;
+    white-space: nowrap;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+.block-btn:hover {
+    background-color: #dc2626;
+}
+.block-btn:disabled {
+    background-color: #22c55e;
+    opacity: 0.8;
+    cursor: not-allowed;
+}

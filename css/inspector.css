@@ -1,0 +1,158 @@
+/* inspector.css */
+
+#zg-inspector-highlight {
+    position: absolute;
+    z-index: 2147483645;
+    background-color: rgba(0, 229, 255, 0.4);
+    border: 2px solid #00E5FF;
+    pointer-events: none;
+    transition: all 0.1s ease-out;
+    box-sizing: border-box;
+}
+
+#zg-inspector-hud {
+    position: absolute;
+    z-index: 2147483646;
+    background-color: rgba(31, 41, 55, 0.95); /* gray-800 */
+    color: #f9fafb; /* gray-50 */
+    border: 1px solid #4b5563; /* gray-600 */
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    font-family: sans-serif;
+    font-size: 13px;
+    pointer-events: auto; /* Allow clicks inside HUD */
+    width: 320px;
+    overflow: hidden;
+    backdrop-filter: blur(4px);
+}
+
+.zg-hud-header {
+    padding: 8px 10px;
+    background-color: rgba(55, 65, 81, 0.8); /* gray-700 */
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px; /* Add gap for buttons */
+}
+.zg-hud-selector {
+    font-family: monospace;
+    font-size: 12px;
+    color: #9ca3af; /* gray-400 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+}
+.zg-hud-header-actions {
+    display: flex;
+    gap: 6px; /* Space between the two hide buttons */
+}
+
+
+.zg-hud-body {
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.zg-hud-requests h4 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: bold;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.zg-hud-request-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: rgba(75, 85, 99, 0.5); /* gray-600 */
+    padding: 6px 8px;
+    border-radius: 4px;
+    margin-bottom: 5px;
+}
+.zg-hud-request-item .domain {
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-grow: 1;
+    margin-right: 8px;
+}
+
+.zg-hud-btn {
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+/* NEW: Quick Hide Button */
+.zg-hud-quick-hide-btn {
+    background-color: var(--accent-primary);
+    color: var(--accent-text);
+}
+.zg-hud-quick-hide-btn:hover {
+    filter: brightness(1.1);
+}
+.zg-hud-quick-hide-btn:disabled {
+    background-color: #10b981; /* green-500 */
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+/* NEW: Advanced AI Hide Button */
+.zg-hud-ai-hide-btn {
+    background-color: #a855f7; /* purple-500 */
+    color: white;
+}
+.zg-hud-ai-hide-btn:hover {
+    background-color: #9333ea; /* purple-600 */
+}
+
+
+.zg-hud-block-btn {
+    background-color: #ef4444; /* red-500 */
+    color: white;
+}
+.zg-hud-block-btn:hover {
+    background-color: #dc2626; /* red-600 */
+}
+.zg-hud-block-btn:disabled {
+    background-color: #22c55e; /* green-500 */
+    opacity: 0.8;
+    cursor: not-allowed;
+}
+
+.zg-hud-no-requests {
+    color: #9ca3af; /* gray-400 */
+    font-style: italic;
+    font-size: 12px;
+}
+
+.zg-hud-script-note {
+    font-size: 11px;
+    color: #9ca3af; /* gray-400 */
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(107, 114, 128, 0.5);
+    line-height: 1.3;
+    font-style: normal;
+}
+
+.zg-hud-footer {
+    padding: 8px 10px;
+    background-color: rgba(55, 65, 81, 0.8); /* gray-700 */
+    text-align: center;
+}
+
+.zg-hud-exit-hint {
+    font-size: 11px;
+    color: #9ca3af;
+}

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZenithGuard - What's New</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/whats_new.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <img src="../icons/icon48.png" alt="ZenithGuard Logo">
+            <h1>What's New in ZenithGuard</h1>
+            <span id="version-badge" class="version-badge">v2.15.0</span>
+        </header>
+
+        <section class="changelog">
+            <h2>Version 2.15.0 - Architectural Refactor</h2>
+            <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2.6L9.3,8L3.5,8.6L8,12.7L6.9,18.4L12,15.3L17.1,18.4L16,12.7L20.5,8.6L14.7,8L12,2.6M12,5.8L13.7,9.4L17.6,9.9L14.8,12.4L15.4,16.2L12,14.2L8.6,16.2L9.2,12.4L6.4,9.9L10.3,9.4L12,5.8Z" /></svg>
+                </div>
+                <div class="change-content">
+                    <h3>Code Quality & Performance</h3>
+                    <p>
+                        This is an "under-the-hood" update. We've refactored the Data Breach Warning feature to be more efficient. The logic is now centralized in the background service, reducing the amount of code injected into every page you visit. This improves performance and makes the extension more robust and easier to maintain.
+                    </p>
+                </div>
+            </div>
+
+            <h2>Version 2.13.0 - Proactive Security</h2>
+            <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V13H11V7M11,15H13V17H11V15Z" /></svg>
+                </div>
+                <div class="change-content">
+                    <h3>New: Data Breach Warnings</h3>
+                    <p>
+                        You will now see a clear, non-intrusive warning at the top of any site you visit that has a known history of major data breaches. This helps you make informed decisions about your data and password security. This feature can be toggled in General Settings.
+                    </p>
+                </div>
+            </div>
+
+            <h2>Version 2.12.0 - The Refinement Update</h2>
+            
+             <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12,2.6L9.3,8L3.5,8.6L8,12.7L6.9,18.4L12,15.3L17.1,18.4L16,12.7L20.5,8.6L14.7,8L12,2.6M12,5.8L13.7,9.4L17.6,9.9L14.8,12.4L15.4,16.2L12,14.2L8.6,16.2L9.2,12.4L6.4,9.9L10.3,9.4L12,5.8Z" /></svg>
+                </div>
+                <div class="change-content">
+                    <h3>Code & Performance Refinements</h3>
+                    <p>
+                        This update focuses on under-the-hood improvements. We've fixed a memory leak related to network logging, consolidated CSS animations to reduce file size, and performed a general code cleanup for a more stable and efficient extension.
+                    </p>
+                </div>
+            </div>
+
+            <h2>Version 2.11.0 - iFrame Hardening & Smart Consent</h2>
+            
+             <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z"></path></svg>
+                </div>
+                <div class="change-content">
+                    <h3>New: Sandboxed iFrame & AI Cookie Consent</h3>
+                    <p>
+                        ZenithGuard now automatically applies security restrictions to third-party iFrames to prevent malicious ads. The AI now also actively looks for the most privacy-friendly option on cookie banners and automatically clicks it for you.
+                    </p>
+                </div>
+            </div>
+
+            <h2>Version 2.8.0 - The Unblockable Update</h2>
+            
+             <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5,2C18,2 20,4 20,6.5C20,9 18,11 15.5,11C13,11 11,9 11,6.5C11,4 13,2 15.5,2M15.5,4C14.12,4 13,5.12 13,6.5C13,7.88 14.12,9 15.5,9C16.88,9 18,7.88 18,6.5C18,5.12 16.88,4 15.5,4M15.5,12C12.29,12 8.44,13.17 6.31,14.68L5.64,14.22L4.22,15.64L4.9,16.31C3.83,18.44 5,22 5,22C8.28,19.29 10.5,17.17 11.56,16.11L12.91,17.46L14.33,16.05L13.03,14.75C13.84,14.53 14.65,14.36 15.5,14.29V12M7.64,20.36C6.63,19.34 6.27,17.65 6.74,16.27L7.41,16.94L8.5,15.86L7.83,15.19C9.21,14.72 10.9,14.36 12.21,14.19L11.5,14.9L12.92,16.31L13.62,15.61C14.68,16.67 16.79,18.96 19.5,21.67C19.5,21.67 15.83,22.5 13.69,21.42L12.63,20.36L11.21,21.78L10.16,20.73L7.64,20.36Z" /></svg>
+                </div>
+                <div class="change-content">
+                    <h3>New: AI Anti-Adblock Wall Defeater</h3>
+                    <p>
+                        Tired of sites demanding you disable your ad blocker? The **"Defeat Wall"** tool in the popup uses AI to find and remove those annoying overlays, giving you back control. We've also redesigned the popup footer into a clean grid to make all our powerful tools easier to access.
+                    </p>
+                </div>
+            </div>
+
+        </section>
+
+        <footer class="footer">
+            <button id="close-btn" class="btn-primary">Got it, Thanks!</button>
+        </footer>
+    </div>
+    <script src="../js/whats_new/whats_new.js"></script>
+</body>
+</html>

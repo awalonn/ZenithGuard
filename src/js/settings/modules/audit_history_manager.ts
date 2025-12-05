@@ -44,7 +44,7 @@ export class AuditHistoryManager {
         sortedHistory.forEach(item => {
             const tr = document.createElement('tr');
             const gradeClass = `grade-${item.grade.toLowerCase()}`;
-            const analyzerUrl = chrome.runtime.getURL(`pages/analyzer.html?tabId=-1&url=${encodeURIComponent(item.url)}`);
+            const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=-1&url=${encodeURIComponent(item.url)}`);
             tr.innerHTML = `
                 <td>${item.domain}</td>
                 <td>${new Date(item.date).toLocaleString()}</td>

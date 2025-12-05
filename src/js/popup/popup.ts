@@ -154,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const { auditHistory = [], ...storageData } = await chrome.storage.local.get(['auditHistory', summaryCacheKey, policyUrlKey]) as LocalStorageData;
 
         const lastScan = auditHistory.find(item => item.domain === currentHostname);
-        const analyzerUrl = chrome.runtime.getURL(`pages/analyzer.html?tabId=${currentTab!.id}&url=${encodeURIComponent(currentTab!.url!)}`);
+        const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=${currentTab!.id}&url=${encodeURIComponent(currentTab!.url!)}`);
 
         privacyGradeBadge.href = analyzerUrl;
         if (lastScan) {
@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }).join('');
             }
 
-            const loggerUrl = chrome.runtime.getURL(`pages/logger.html?tabId=${currentTab!.id}`);
+            const loggerUrl = chrome.runtime.getURL(`src/pages/logger.html?tabId=${currentTab!.id}`);
             html += `<a id="view-log-link" href="${loggerUrl}" class="view-log-link" target="_blank">View Full Network Log</a>`;
 
             if (activityContent) activityContent.innerHTML = html;
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             const tab = await getCurrentTab();
             if (tab && tab.id) {
-                const analyzerUrl = chrome.runtime.getURL(`pages/analyzer.html?tabId=${tab.id}&url=${encodeURIComponent(tab.url!)}`);
+                const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=${tab.id}&url=${encodeURIComponent(tab.url!)}`);
                 chrome.tabs.create({ url: analyzerUrl });
             }
         });

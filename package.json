@@ -1,6 +1,6 @@
 {
   "name": "zenithguard",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ZenithGuard - Advanced AI Ad & Privacy Blocker",
   "main": "js/background/background.js",
   "type": "module",

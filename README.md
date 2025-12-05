@@ -1,4 +1,6 @@
 ZenithGuard - Advanced AI Ad & Privacy Blocker
+[https://github.com/awalonn/ZenithGuard](https://github.com/awalonn/ZenithGuard)
+
 ZenithGuard is a next-generation ad and privacy blocker for Google Chrome, built on Manifest V3. It
 combines the power of traditional, community-driven filter lists with a suite of intelligent, AI-powered
 tools to create a cleaner, safer, and faster browsing experience.

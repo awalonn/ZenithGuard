@@ -1,0 +1,40 @@
+{
+  "SESSION_REPLAY": {
+    "domains": [
+      "hotjar.com",
+      "fullstory.com",
+      "logrocket.com",
+      "inspectlet.com",
+      "clarity.ms",
+      "vwo.com",
+      "mouseflow.com",
+      "heap.io"
+    ],
+    "message": "This site uses session replay scripts from <strong>{domain}</strong>, which can record your clicks, mouse movements, and keystrokes."
+  },
+  "DATA_BROKER": {
+    "domains": [
+      "criteo.com",
+      "liveramp.com",
+      "acxiom.com",
+      "oracle.com",
+      "rlcdn.com",
+      "neustar.biz",
+      "quantcast.com",
+      "epsilon.com"
+    ],
+    "message": "A connection was made to <strong>{domain}</strong>, a known data broker that collects and sells your personal information."
+  },
+  "AD_EXCHANGE": {
+    "domains": [
+      "adnxs.com",
+      "rubiconproject.com",
+      "openx.net",
+      "pubmatic.com",
+      "indexexchange.com",
+      "doubleclick.net",
+      "googlesyndication.com"
+    ],
+    "message": "This site uses the <strong>{domain}</strong> ad exchange, which shares your data across a wide network of advertisers."
+  }
+}

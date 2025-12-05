@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ZenithGuard</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="../css/popup.css">
+    <link rel="stylesheet" href="../css/toast.css">
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div id="app-root">
+        <!-- Paused View -->
+        <div id="paused-view" class="glass-panel" style="display: none;">
+            <div class="paused-content">
+                <div class="paused-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M10,16L14,12L10,8V16Z" />
+                    </svg>
+                </div>
+                <h2>Protection Paused</h2>
+                <p>Resuming in <span id="pause-timer" class="mono-font">15:00</span></p>
+                <button id="resume-btn" class="primary-btn">Resume Now</button>
+            </div>
+        </div>
+
+        <!-- Normal View -->
+        <div id="normal-view">
+            <!-- Header / Protection Hub -->
+            <header class="hero-section">
+                <div class="top-bar">
+                    <div class="brand">
+                        <img src="../icons/icon32.png" alt="Logo" class="brand-logo">
+                        <span class="brand-name">ZenithGuard</span>
+                    </div>
+                    <button id="open-settings-btn" class="icon-btn" aria-label="Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M10,22C9.75,22 9.5,21.9 9.3,21.7L4.7,17.1C4.3,16.7 4.3,16.1 4.7,15.7C5.1,15.3 5.7,15.3 6.1,15.7L9.3,18.9C9.5,19.1 9.75,19.2 10,19.2C10.25,19.2 10.5,19.1 10.7,18.9L17.9,11.7C18.3,11.3 18.9,11.3 19.3,11.7C19.7,12.1 19.7,12.7 19.3,13.1L10.7,21.7C10.5,21.9 10.25,22 10,22M19.4,6C19,5.8 18.5,5.7 18,5.7C17.5,5.7 17,5.8 16.6,6L15,5.2V3.7C15,3.2 14.6,2.8 14.1,2.8H9.9C9.4,2.8 9,3.2 9,3.7V5.2L7.4,6C7,5.8 6.5,5.7 6,5.7C4.9,5.7 4,6.6 4,7.7V14C4,14.2 4,14.3 4.1,14.5L2.5,16.1C2.3,16.3 2.2,16.6 2.2,16.9C2.2,17.2 2.3,17.5 2.5,17.7C2.9,18.1 3.5,18.1 3.9,17.7L5.5,16.1C5.7,16.1 5.8,16.1 6,16.1C6.5,16.1 7,16 7.4,15.8L9,16.6V18.1C9,18.6 9.4,19 9.9,19H10.5C10.8,19 11,18.9 11.2,18.7L14.2,15.7C14.6,15.9 15.1,16 15.6,16H18C19.1,16 20,15.1 20,14V7.7C20,6.6 19.1,5.7 18,5.7C18.5,5.7 19,5.8 19.4,6Z" />
+                        </svg>
+                    </button>
+                </div>
+
+                <div class="shield-container">
+                    <div class="shield-ring"></div>
+                    <button id="power-btn" class="shield-btn" aria-label="Toggle Global Protection">
+                        <svg id="power-icon-enabled" class="shield-icon" xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24" fill="currentColor">
+                            <path
+                                d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.99H7V12.01L12,12V11.99M17,12H12V12.01L17,12.01V12Z" />
+                        </svg>
+                        <svg id="power-icon-disabled" class="shield-icon" xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 24 24" fill="currentColor" style="display: none;">
+                            <path
+                                d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M12,11.99H7V12.01L12,12V11.99M17,12H12V12.01L17,12.01V12Z"
+                                opacity="0.3" />
+                        </svg>
+                    </button>
+                    <div class="pulse-ring"></div>
+                </div>
+
+                <div class="site-status">
+                    <h1 id="site-hostname">Loading...</h1>
+                    <div class="site-toggle-wrapper">
+                        <label class="switch-sm">
+                            <input type="checkbox" id="per-site-toggle">
+                            <span class="slider-sm"></span>
+                        </label>
+                        <span class="status-text">Protection</span>
+                    </div>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <!-- Navigation Tabs -->
+                <div class="nav-tabs glass-panel">
+                    <button class="tab-btn active" data-tab="home">
+                        <span>Home</span>
+                    </button>
+                    <button class="tab-btn" data-tab="insights">
+                        <span>Insights</span>
+                    </button>
+                    <button class="tab-btn" data-tab="tools">
+                        <span>Tools</span>
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="content-area">
+                    <!-- HOME TAB -->
+                    <div id="home" class="tab-content active">
+                        <!-- AI Briefing Card -->
+                        <div id="privacy-briefing-card" class="glass-card briefing-card">
+                            <div class="card-header">
+                                <h3>AI Analysis</h3>
+                                <a href="#" id="privacy-grade-badge" class="grade-badge grade-none"
+                                    target="_blank">Scan</a>
+                            </div>
+                            <div id="briefing-content">
+                                <!-- Content rendered by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Quick Stats -->
+                        <div class="stats-grid">
+                            <div class="glass-card stat-card">
+                                <span class="stat-label">Ads Blocked</span>
+                                <span class="stat-value" id="ads-blocked-count">0</span>
+                            </div>
+                            <div class="glass-card stat-card">
+                                <span class="stat-label">Trackers</span>
+                                <span class="stat-value" id="trackers-blocked-count">0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- INSIGHTS TAB -->
+                    <div id="insights" class="tab-content">
+                        <div class="section-title">Privacy Risks</div>
+                        <div id="insights-list" class="scroll-list">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <div class="section-title">Network Activity</div>
+                        <div id="activity" class="scroll-list">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- TOOLS TAB (Merged Rules, Cookies, Tools) -->
+                    <div id="tools" class="tab-content">
+                        <div class="tools-grid">
+                            <button id="defeat-wall-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M10,16L14,12L10,8V16Z" />
+                                    </svg>
+                                </div>
+                                <span>Defeat Wall</span>
+                            </button>
+                            <button id="zapper-mode-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M13,2V13H22L11,22V11H2L13,2Z" />
+                                    </svg>
+                                </div>
+                                <span>Zapper</span>
+                            </button>
+                            <button id="open-inspector-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,5A7,7 0 0,0 5,12A7,7 0 0,0 12,19A7,7 0 0,0 19,12A7,7 0 0,0 12,5Z" />
+                                    </svg>
+                                </div>
+                                <span>Inspector</span>
+                            </button>
+                            <button id="forgetful-browsing-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M16.24,7.76L14.83,6.34L12,9.17L9.17,6.34L7.76,7.76L10.59,10.59L7.76,13.41L9.17,14.83L12,12L14.83,14.83L16.24,13.41L13.41,10.59L16.24,7.76Z" />
+                                    </svg>
+                                </div>
+                                <span>Forgetful</span>
+                            </button>
+                            <button id="isolation-mode-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" />
+                                    </svg>
+                                </div>
+                                <span>Isolation</span>
+                            </button>
+                            <button id="pause-protection-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M14,19H18V5H14M6,19H10V5H6V19Z" />
+                                    </svg>
+                                </div>
+                                <span>Pause</span>
+                            </button>
+                            <button id="fix-cookies-btn" class="glass-card tool-card">
+                                <div class="tool-icon">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                                        <path
+                                            d="M12,2C6.48,2 2,6.48 2,12C2,17.52 6.48,22 12,22C17.52,22 22,17.52 22,12C22,6.48 17.52,2 12,2M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M16.5,13C17.33,13 18,13.67 18,14.5C18,15.33 17.33,16 16.5,16C15.67,16 15,15.33 15,14.5C15,13.67 15.67,13 16.5,13M14,10C14.83,10 15.5,10.67 15.5,11.5C15.5,12.33 14.83,13 14,13C13.17,13 12.5,12.33 12.5,11.5C12.5,10.67 13.17,10 14,10M10,15C10.83,15 11.5,15.67 11.5,16.5C11.5,17.33 10.83,18 10,18C9.17,18 8.5,17.33 8.5,16.5C8.5,15.67 9.17,15 10,15M9.5,8C10.33,8 11,8.67 11,9.5C11,10.33 10.33,11 9.5,11C8.67,11 8,10.33 8,9.5C8,8.67 8.67,8 9.5,8Z" />
+                                    </svg>
+                                </div>
+                                <span>Fix Cookies</span>
+                            </button>
+                        </div>
+
+                        <div class="section-title">Custom Rules</div>
+                        <div id="rules" class="glass-card rules-section">
+                            <div class="add-rule-form">
+                                <input type="text" id="add-rule-input" placeholder="Enter CSS selector...">
+                                <button id="add-rule-btn" class="icon-btn-sm">+</button>
+                            </div>
+                            <div id="rules-list-container" class="scroll-list-sm">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+
+                        <!-- Hidden Cookie Section (Simplified for now) -->
+                        <div id="cookies" style="display:none;"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <div id="zg-toast-container"></div>
+    <script src="../js/utils/toast.js"></script>
+    <script type="module" src="../js/popup/popup.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ZenithGuard Settings</title>
+    <meta charset="UTF-8">
+  <script type="module" crossorigin src="/js/settings.js"></script>
+  <link rel="modulepreload" crossorigin href="/js/toast-DNfHeScJ.js">
+  <link rel="modulepreload" crossorigin href="/js/subscription_presets-DdBWjbH6.js">
+  <link rel="stylesheet" crossorigin href="/assets/toast-DKIwOoDV.css">
+  <link rel="stylesheet" crossorigin href="/assets/settings-BvL8Pg3Q.css">
+  <link rel="stylesheet" crossorigin href="/assets/theme-BBPZWUgU.css">
+  <link rel="stylesheet" crossorigin href="/assets/shared-CDoNpH1i.css">
+</head>
+
+<body>
+    <div class="settings-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="/assets/icon48-DCobPUB6.png" alt="ZenithGuard Logo">
+                <h1>ZenithGuard</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-btn active" data-section="dashboard">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13,3V9H21V3M13,21H21V11H13M3,21H11V15H3M3,13H11V3H3V13Z" />
+                    </svg>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn" data-section="general-settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8M12,10A2,2 0 0,0 10,12A2,2 0 0,0 12,14A2,2 0 0,0 14,12A2,2 0 0,0 12,10M10,22C9.75,22 9.5,21.9 9.3,21.7L4.7,17.1C4.3,16.7 4.3,16.1 4.7,15.7C5.1,15.3 5.7,15.3 6.1,15.7L9.3,18.9C9.5,19.1 9.75,19.2 10,19.2C10.25,19.2 10.5,19.1 10.7,18.9L17.9,11.7C18.3,11.3 18.9,11.3 19.3,11.7C19.7,12.1 19.7,12.7 19.3,13.1L10.7,21.7C10.5,21.9 10.25,22 10,22M19.4,6C19,5.8 18.5,5.7 18,5.7C17.5,5.7 17,5.8 16.6,6L15,5.2V3.7C15,3.2 14.6,2.8 14.1,2.8H9.9C9.4,2.8 9,3.2 9,3.7V5.2L7.4,6C7,5.8 6.5,5.7 6,5.7C4.9,5.7 4,6.6 4,7.7V14C4,14.2 4,14.3 4.1,14.5L2.5,16.1C2.3,16.3 2.2,16.6 2.2,16.9C2.2,17.2 2.3,17.5 2.5,17.7C2.9,18.1 3.5,18.1 3.9,17.7L5.5,16.1C5.7,16.1 5.8,16.1 6,16.1C6.5,16.1 7,16 7.4,15.8L9,16.6V18.1C9,18.6 9.4,19 9.9,19H10.5C10.8,19 11,18.9 11.2,18.7L14.2,15.7C14.6,15.9 15.1,16 15.6,16H18C19.1,16 20,15.1 20,14V7.7C20,6.6 19.1,5.7 18,5.7C18.5,5.7 19,5.8 19.4,6Z" />
+                    </svg>
+                    <span>General Settings</span>
+                </button>
+                <button class="nav-btn" data-section="my-rules">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" />
+                    </svg>
+                    <span>My Rules</span>
+                </button>
+                <button class="nav-btn" data-section="subscriptions">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M14,13V17H10V13H7L12,8L17,13H14M19.35,10.03C18.67,6.59 15.64,4 12,4C9.11,4 6.6,5.64 5.35,8.03C2.34,8.36 0,10.9 0,14C0,17.31 2.69,20 6,20H19C21.76,20 24,17.76 24,15C24,12.36 21.95,10.22 19.35,10.03Z" />
+                    </svg>
+                    <span>Subscriptions</span>
+                </button>
+                <button class="nav-btn" data-section="about">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
+                    </svg>
+                    <span>About</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <label class="theme-switch-label">
+                    <span>Light Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-theme">
+                        <span class="slider"></span>
+                    </label>
+                </label>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <div class="content-header">
+                    <h1>Dashboard</h1>
+                </div>
+                <div class="dashboard-grid">
+                    <div class="stat-card">
+                        <h3>Blocks Today</h3>
+                        <p id="blocks-today">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Trackers Blocked</h3>
+                        <p id="total-trackers">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Ads Blocked</h3>
+                        <p id="total-ads">0</p>
+                    </div>
+                    <div id="performance-impact" class="stat-card gauge-card">
+                        <h3>Page Load Improvement</h3>
+                        <svg width="150" height="150" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" class="gauge-background" stroke-width="12" />
+                            <circle cx="60" cy="60" r="54" class="gauge-arc" stroke-width="12"
+                                transform="rotate(-90 60 60)" stroke-dasharray="0, 339.292" stroke-dashoffset="0" />
+                            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                                class="gauge-text">0%</text>
+                        </svg>
+                    </div>
+                    <div class="stat-card full-width">
+                        <h3>AI Scan Audit History</h3>
+                        <div class="audit-history-table-container">
+                            <table class="audit-history-table">
+                                <thead>
+                                    <tr>
+                                        <th>Domain</th>
+                                        <th>Date</th>
+                                        <th>Grade</th>
+                                        <th>Threats</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-history-tbody"></tbody>
+                            </table>
+                        </div>
+                        <div class="table-actions">
+                            <button class="btn btn-danger" id="clear-history-btn">Clear History</button>
+                        </div>
+                    </div>
+                    <div class="stat-card full-width">
+                        <h3>Activity (Last 7 Days)</h3>
+                        <div class="chart-container" style="height: 200px; width: 100%; position: relative;">
+                            <svg id="activity-chart" width="100%" height="100%" viewBox="0 0 800 200"
+                                preserveAspectRatio="none">
+                                <!-- Chart will be rendered here -->
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- General Settings Section -->
+            <section id="general-settings" class="content-section">
+                <div class="content-header">
+                    <h1>General Settings</h1>
+                </div>
+
+                <h3>Core Protection</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label><span>Dedicated YouTube™ Ad Blocking</span><label class="switch"><input type="checkbox"
+                                    data-setting="isYouTubeAdBlockingEnabled"><span
+                                    class="slider"></span></label></label>
+                        <p class="setting-description">Specifically targets and blocks most pre-roll, mid-roll, and
+                            banner ads on YouTube.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>Heuristic Engine</span><label class="switch"><input type="checkbox"
+                                    data-setting="isHeuristicEngineEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Proactively blocks new and unknown trackers by matching URL
+                            patterns against a list of keywords.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>Malware & Phishing Protection</span><label class="switch"><input type="checkbox"
+                                    data-setting="isMalwareProtectionEnabled"><span
+                                    class="slider"></span></label></label>
+                        <p class="setting-description">Blocks access to sites known for hosting malware, phishing, or
+                            other security threats.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>Clean URLs (Tracking Stripper)</span><label class="switch"><input type="checkbox"
+                                    data-setting="isUrlCleanerEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Automatically removes tracking parameters (like `utm_source`)
+                            from web page URLs.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>AI-Powered Cookie Consent</span><label class="switch"><input type="checkbox"
+                                    data-setting="isCookieBannerHidingEnabled"><span
+                                    class="slider"></span></label></label>
+                        <p class="setting-description">Uses AI to find and click the most privacy-friendly option (e.g.,
+                            "Reject All") on cookie banners.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>Data Breach Warnings</span><label class="switch"><input type="checkbox"
+                                    data-setting="isBreachWarningEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Shows a warning when you visit a site known to have had a major
+                            data breach.</p>
+                    </div>
+                    <div class="setting-item">
+                        <label><span>Sandboxed iFrame Protection</span><label class="switch"><input type="checkbox"
+                                    data-setting="isSandboxedIframeEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Restricts third-party iFrames to prevent malicious ads from
+                            redirecting you or showing pop-ups.</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">Performance</h3>
+                <div class="settings-grid" style="grid-template-columns: 1fr;">
+                    <div class="setting-item">
+                        <label><span>Performance Mode</span><label class="switch"><input type="checkbox"
+                                    data-setting="isPerformanceModeEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Prioritizes page load speed by disabling some non-critical
+                            cosmetic filters. Recommended for less powerful devices or when speed is paramount.</p>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">AI Features</h3>
+                <div class="settings-grid">
+                    <div class="setting-item">
+                        <label><span>AI Self-Healing Rules</span><label class="switch"><input type="checkbox"
+                                    data-setting="isSelfHealingEnabled"><span class="slider"></span></label></label>
+                        <p class="setting-description">Automatically uses AI to try and repair your custom hiding rules
+                            if they break due to site updates. (Uses API quota)</p>
+                    </div>
+                    <div class="setting-item full-span">
+                        <label>Google Gemini API Key</label>
+                        <p class="setting-description">Required for all AI-powered features, including the Page
+                            Analyzer, AI Hider, and Self-Healing Rules. Get your free key from <a
+                                href="https://aistudio.google.com/app/apikey" target="_blank" class="inline-link">Google
+                                AI Studio</a>.</p>
+                        <div class="api-key-form">
+                            <input type="password" id="api-key-input" placeholder="Enter your Gemini API key">
+                            <button class="btn btn-primary" id="save-api-key-btn">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">Data Management</h3>
+                <div class="setting-item full-span">
+                    <label>Export/Import/Reset</label>
+                    <p class="setting-description">Save your current settings to a file, import them on another device,
+                        or reset all rules to their default state.</p>
+                    <div class="data-actions">
+                        <button id="export-btn" class="btn btn-secondary">Export Settings</button>
+                        <button id="import-btn" class="btn btn-secondary">Import Settings</button>
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                        <button id="reset-btn" class="btn btn-danger">Reset Rules</button>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 2rem;">Advanced Configuration</h3>
+                <section class="settings-section">
+                    <div class="setting-item full-span">
+                        <label for="youtube-rules-url">YouTube Rules URL</label>
+                        <input type="url" id="youtube-rules-url" placeholder="https://..." class="full-width-input">
+                        <p class="setting-description">Remote URL for YouTube ad blocking rules</p>
+                    </div>
+
+                    <div class="setting-item full-span">
+                        <label for="tracker-list-url">Tracker List URL</label>
+                        <input type="url" id="tracker-list-url" placeholder="https://..." class="full-width-input">
+                        <p class="setting-description">Remote URL for tracker definitions</p>
+                    </div>
+
+                    <button id="save-advanced-settings" class="btn btn-primary" style="margin-top: 1rem;">Save Advanced
+                        Settings</button>
+                </section>
+
+            </section>
+
+            <!-- My Rules Section -->
+            <section id="my-rules" class="content-section">
+                <div class="content-header">
+                    <h1>My Rules</h1>
+                </div>
+                <div class="info-box">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
+                    </svg>
+                    <p>This section displays all your custom rules. To add new rules, use the <strong>Zapper</strong>,
+                        <strong>Inspector</strong>, and other tools from the popup menu while browsing.
+                    </p>
+                </div>
+                <div class="rules-tables-container">
+
+                    <div class="rules-table">
+                        <h3>Default Blocklist <span class="rule-count" id="default-blocklist-count">(0)</span></h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain/Pattern</th>
+                                    <th>Enabled</th>
+                                </tr>
+                            </thead>
+                            <tbody id="default-blocklist-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="rules-table">
+                        <h3>Network Blocklist <span class="rule-count" id="network-blocklist-count">(0)</span></h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Enabled</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="network-blocklist-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="rules-table">
+                        <h3>Custom Hiding Rules <span class="rule-count" id="hiding-rules-count">(0)</span></h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Rule Count</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="hiding-rules-tbody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="rules-table">
+                        <h3>Heuristic Engine Keywords <span class="rule-count" id="heuristic-keywords-count">(0)</span>
+                        </h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Keyword</th>
+                                    <th>Enabled</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="heuristic-keywords-tbody"></tbody>
+                        </table>
+                        <div class="add-rule-form">
+                            <input type="text" id="add-heuristic-keyword-input"
+                                placeholder="Add new keyword, e.g., /advert-banner/">
+                            <button class="btn btn-primary" data-action="add-heuristic-keyword">Add Keyword</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Subscriptions Section -->
+            <section id="subscriptions" class="content-section">
+                <div class="content-header">
+                    <h1>Subscriptions</h1>
+                    <button class="btn btn-primary" id="update-custom-lists-btn" data-action="update-all-lists">Update
+                        All Lists</button>
+                </div>
+
+                <h3>Bundled Filter Lists</h3>
+                <p class="setting-description" style="margin-bottom: 1rem;">
+                    These are large, powerful filter lists bundled directly with the extension for maximum performance.
+                    Network rules update when the extension updates.
+                </p>
+                <div id="bundled-subscriptions-list" class="recommended-subscriptions-container">
+                    <!-- Cards will be rendered here by rules_manager.js -->
+                </div>
+
+                <h3>My Custom Subscriptions</h3>
+                <p class="setting-description" style="margin-bottom: 1rem;">
+                    Add other filter lists by URL. These lists are dynamic and will be updated every 24 hours. (Note:
+                    Large lists like EasyList should be used from the bundled section above).
+                </p>
+                <div class="add-subscription-form">
+                    <input type="text" id="add-subscription-input" placeholder="https://example.com/filterlist.txt">
+                    <button class="btn btn-primary" data-action="add-subscription">Subscribe</button>
+                </div>
+                <div class="rules-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>URL</th>
+                                <th>Rules</th>
+                                <th>Last Updated</th>
+                                <th>Enabled</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="custom-subscriptions-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- REFACTORED: Renamed and added container -->
+                <h3 style="margin-top: 2rem;">Dynamic Lists Status</h3>
+                <p class="setting-description" style="margin-bottom: 1rem;">
+                    These lists automatically fetch the latest rules from remote sources to protect against
+                    fast-changing threats like malware, YouTube ads, and known trackers.
+                </p>
+                <div class="dynamic-lists-container">
+                    <div id="malware-list-status" class="status-card">
+                        <!-- Status rendered here -->
+                    </div>
+                    <div id="youtube-list-status" class="status-card">
+                        <!-- Status rendered here -->
+                    </div>
+                    <!-- NEW: Tracker List Status Card -->
+                    <div id="tracker-list-status" class="status-card">
+                        <!-- Status rendered here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- About Section -->
+            <section id="about" class="content-section">
+                <div class="about-content">
+                    <img src="/assets/icon128-Bkqz7a9u.png" alt="ZenithGuard Logo">
+                    <h2>ZenithGuard</h2>
+                    <p>An advanced ad & privacy blocker leveraging AI to create a cleaner, safer, and faster browsing
+                        experience.</p>
+                    <div class="about-links">
+                        <a href="https://github.com/awalonn/ZenithGuard" target="_blank"
+                            class="btn btn-secondary">Source Code</a>
+                        <!-- FIX: Changed href from "pages/whats_new.html" to just "whats_new.html" -->
+                        <a href="whats_new.html" target="_blank" class="btn btn-secondary">What's New</a>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+    <div id="zg-toast-container"></div>
+    <!-- REFACTORED: Load toast.js as a plain script *before* the module that uses it -->
+    <script src="../js/utils/toast.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZenithGuard - Page Analysis</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/shared.css">
+    <link rel="stylesheet" href="../css/analyzer.css">
+    <style>
+        /* Additional page-specific styles */
+        body { background-color: var(--bg-primary); color: var(--text-primary); }
+        .container { max-width: 900px; margin: 2rem auto; padding: 1rem; }
+        .scan-controls { text-align: center; margin-bottom: 2rem; }
+        #start-scan-btn {
+            background-color: var(--accent-primary);
+            color: var(--accent-text);
+            border: none;
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        #scan-status-message {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            height: 1.2rem; /* Reserve space */
+        }
+        #report-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        #report-header h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+        #report-header p {
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        /* Icon alignment for card titles */
+        .card-title svg {
+            margin-right: 10px;
+            width: 24px;
+            height: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Persistent Header -->
+        <div class="scan-controls">
+            <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 0.5rem;">AI Page Analyzer</h1>
+            <p id="page-domain" style="color: var(--text-secondary); margin-bottom: 1.5rem;">Analyzing...</p>
+            <button id="start-scan-btn">Scan Page</button>
+            <p id="scan-status-message"></p>
+        </div>
+
+        <!-- Content Area: State is controlled by class -->
+        <div id="content-area">
+            <!-- Loading State -->
+            <div class="loading-view" style="text-align: center; margin-top: 2rem;">
+                <div class="loader"></div>
+                <p id="loading-message" style="margin-top: 1rem; color: var(--text-secondary);">Initializing scan...</p>
+            </div>
+
+            <!-- Generic Error State -->
+            <div class="error-view">
+                <h3>Analysis Failed</h3>
+                <p id="error-message">An unknown error occurred.</p>
+                <button id="retry-scan-btn">Try Again</button>
+            </div>
+
+            <!-- NEW: Quota Error State -->
+            <div class="quota-error-view">
+                <h3>AI Quota Reached</h3>
+                <p>You've exceeded the daily usage limit for the Gemini API's free tier. AI features will be available again when the quota resets (usually within 24 hours).</p>
+                <p>For higher limits, please check your <a href="https://ai.google.dev/gemini-api/docs/rate-limits" target="_blank">plan and billing details</a>.</p>
+            </div>
+            
+            <!-- NEW: API Key Missing State -->
+            <div id="api-key-missing-view" class="api-key-missing-view">
+                <h3>AI Features Disabled</h3>
+                <p>The AI Page Analyzer requires a Google Gemini API key to function. Please add your free API key in the extension's settings.</p>
+                <button id="go-to-settings-btn">Open Settings</button>
+            </div>
+
+            <!-- Report State -->
+            <div class="report-view">
+                <div id="report-header">
+                    <h1>Analysis Complete</h1>
+                    <p id="report-page-domain"></p>
+                </div>
+
+                <div class="summary-header">
+                    <div class="privacy-grade-container">
+                         <svg width="150" height="150" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="54" class="gauge-background" stroke-width="12" />
+                            <circle cx="60" cy="60" r="54" class="gauge-arc" stroke-width="12"
+                                    transform="rotate(-90 60 60)"
+                                    stroke-dasharray="0, 339.292"
+                                    stroke-dashoffset="0" />
+                            <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="gauge-text">F</text>
+                        </svg>
+                    </div>
+                    <div class="summary-details">
+                        <div class="summary-grid">
+                            <div class="summary-card">
+                                <h3 class="summary-title">Network Threats</h3>
+                                <p id="summary-network-threats" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Visual Annoyances</h3>
+                                <p id="summary-visual-annoyances" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Heuristic Issues</h3>
+                                <p id="summary-heuristic-issues" class="summary-value">0</p>
+                            </div>
+                             <div class="summary-card">
+                                <h3 class="summary-title">Dark Patterns</h3>
+                                <p id="summary-dark-patterns" class="summary-value">0</p>
+                            </div>
+                        </div>
+                        <button id="apply-all-fixes-btn" class="btn-apply-all hidden">Apply All AI Fixes</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h2 class="card-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="text-red-400"><path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V13H11V7M11,15H13V17H11V15Z" /></svg>
+                        Network Threats
+                    </h2>
+                    <div id="network-threats-content"></div>
+                </div>
+                <div class="report-card">
+                    <h2 class="card-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="text-yellow-400"><path d="M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9M12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12A5,5 0 0,1 12,17M12,4.5C7,4.5 2.73,7.61 1,12C2.73,16.39 7,19.5 12,19.5C17,19.5 21.27,16.39 23,12C21.27,7.61 17,4.5 12,4.5Z" /></svg>
+                        AI Visual Suggestions
+                    </h2>
+                    <div id="visual-suggestions-content"></div>
+                </div>
+                 <div class="report-card">
+                    <h2 class="card-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="text-blue-400"><path d="M15.5,12C18,12 20,14 20,16.5C20,17.38 19.75,18.21 19.31,18.9L22.39,22L21,23.39L17.88,20.32C17.19,20.75 16.37,21 15.5,21C13,21 11,19 11,16.5C11,14 13,12 15.5,12M15.5,14A2.5,2.5 0 0,0 13,16.5A2.5,2.5 0 0,0 15.5,19A2.5,2.5 0 0,0 18,16.5A2.5,2.5 0 0,0 15.5,14M10,4A4,4 0 0,1 14,8C14,8.91 13.69,9.75 13.18,10.43C12.32,10.75 11.55,11.26 10.91,11.9L10,12A4,4 0 0,1 6,8A4,4 0 0,1 10,4M2,20V18C2,15.88 5.31,14.14 9.5,14C9.18,14.78 9,15.62 9,16.5C9,17.79 9.38,19 10,20H2Z" /></svg>
+                        Heuristic Keywords Found
+                    </h2>
+                    <div id="heuristic-keywords-content"></div>
+                </div>
+                 <div class="report-card">
+                    <h2 class="card-title">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="color: #c084fc;"><path d="M17.81,4.47C17.73,4.47 17.65,4.45 17.58,4.41C15.66,3.42 14,2.72 12,2.72C10,2.72 8.34,3.42 6.42,4.41C6.15,4.55 5.82,4.44 5.69,4.17C5.55,3.9 5.66,3.57 5.93,3.44C7.97,2.39 9.8,1.63 12,1.63C14.2,1.63 16.03,2.39 18.07,3.44C18.34,3.57 18.45,3.9 18.31,4.17C18.22,4.36 18.02,4.47 17.81,4.47M3.5,9.72C3.42,9.72 3.34,9.7 3.27,9.66C2.38,9.2 1.5,8.3 1.5,6.68C1.5,5.09 2.11,4.18 2.97,3.64C3.2,3.49 3.51,3.56 3.66,3.79C3.81,4.03 3.74,4.34 3.5,4.49C2.97,4.82 2.59,5.43 2.59,6.68C2.59,7.69 3.12,8.28 3.74,8.6C4,8.73 4.11,9.06 3.97,9.29C3.88,9.46 3.69,9.57 3.5,9.57V9.72M12,22C12,22 3.19,18.09 3.19,10.43C3.19,9.29 3.43,7.79 3.97,6.11C4.06,5.83 4.37,5.67 4.65,5.76C4.93,5.85 5.09,6.16 5,6.44C4.5,7.94 4.28,9.29 4.28,10.43C4.28,16.96 11.25,20.39 12,20.75C12.75,20.39 19.72,16.96 19.72,10.43C19.72,8.58 19.32,6.5 18.43,4.5C18.32,4.23 18.45,3.92 18.72,3.8C18.97,3.69 19.29,3.82 19.4,4.08C20.37,6.24 20.81,8.5 20.81,10.43C20.81,18.09 12,22 12,22Z" /></svg>
+                        Dark Patterns Detected
+                    </h2>
+                    <div id="dark-patterns-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="../js/analyzer/analyzer.js"></script>
+</body>
+</html>

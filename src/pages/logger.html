@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZenithGuard - Network Log</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/logger.css">
+    <link rel="stylesheet" href="../css/toast.css">
+    <style>
+        .log-table .time { width: 100px; color: #9ca3af; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Network Log</h1>
+            <p>Live requests for tab: <span id="tab-title">Loading...</span></p>
+        </header>
+
+        <div class="toolbar">
+            <input type="text" id="filter-input" placeholder="Filter requests by URL...">
+            <div class="filter-buttons">
+                <button data-filter="all" class="active">All</button>
+                <button data-filter="blocked">Blocked</button>
+                <button data-filter="allowed">Allowed</button>
+            </div>
+            <button id="clear-log-btn">Clear Log</button>
+        </div>
+
+        <div class="log-container">
+            <table class="log-table">
+                <thead>
+                    <tr>
+                        <th class="time">Time</th>
+                        <th class="status">Status</th>
+                        <th class="url">URL</th>
+                        <th class="source">Source</th>
+                        <th class="type">Type</th>
+                        <th class="initiator">Initiator</th>
+                        <th class="actions">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="log-body">
+                    <!-- Rows will be injected here by logger.js -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="zg-toast-container"></div>
+    <!-- REFACTORED: Load toast.js as a plain script *before* the module that uses it -->
+    <script src="../js/utils/toast.js"></script>
+    <script type="module" src="../js/logger/logger.js"></script>
+</body>
+</html>

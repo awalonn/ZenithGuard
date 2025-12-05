@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Welcome to ZenithGuard</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="../css/theme.css">
+    <link rel="stylesheet" href="../css/welcome.css">
+    <link rel="stylesheet" href="../css/toast.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="welcome-card">
+        <div class="logo-container">
+            <img src="../icons/icon128.png" alt="ZenithGuard Logo">
+        </div>
+        <h1>Welcome to ZenithGuard</h1>
+        <p class="subtitle">Your browsing is now cleaner, safer, and faster.</p>
+
+        <div class="features-grid">
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" />
+                </svg>
+                <span>Ad & Tracker Blocking</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" />
+                </svg>
+                <span>AI Privacy Analysis</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13,2V13H22L11,22V11H2L13,2Z" />
+                </svg>
+                <span>Element Zapper</span>
+            </div>
+            <div class="feature-item">
+                <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <path
+                        d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V13H11V7M11,15H13V17H11V15Z" />
+                </svg>
+                <span>Malware Protection</span>
+            </div>
+        </div>
+
+        <div class="api-section">
+            <h3>Enable AI Features</h3>
+            <p>To use AI Analysis, Cookie Consent, and Self-Healing Rules, you need a free Google Gemini API key.</p>
+            <div class="input-group">
+                <input type="password" id="api-key-input" placeholder="Paste your Gemini API Key here">
+            </div>
+            <p style="margin-top: 0.5rem; font-size: 0.75rem;">
+                Don't have one? <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                    style="color: var(--accent-primary);">Get it for free here</a>.
+            </p>
+        </div>
+
+        <button id="save-start-btn" class="btn-primary">Save & Start Browsing</button>
+        <a href="#" id="skip-link" class="skip-link">Skip for now (I'll add it later)</a>
+    </div>
+
+    <div id="zg-toast-container"></div>
+    <script src="../js/utils/toast.js"></script>
+    <script type="module" src="../js/welcome/welcome.js"></script>
+</body>
+
+</html>

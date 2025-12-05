@@ -1,0 +1,80 @@
+
+
+/* shared.css */
+/* Consistent Toggle Switch Style */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--bg-tertiary);
+  transition: .4s;
+  border-radius: 22px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked+.slider {
+  background-color: var(--accent-primary);
+}
+input:checked+.slider:before {
+  transform: translateX(16px);
+}
+
+/* NEW: Privacy Grade Badge Styles */
+.grade-badge {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-weight: bold;
+    font-size: 13px;
+    color: #000;
+    text-decoration: none;
+    transition: transform 0.2s, filter 0.2s;
+    display: inline-block;
+}
+.grade-badge:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
+}
+.grade-a { background-color: #4ade80; }
+.grade-b { background-color: #a3e635; }
+.grade-c { background-color: #facc15; }
+.grade-d { background-color: #fb923c; }
+.grade-f { background-color: #f87171; }
+.grade-none {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* NEW: Consistent Focus Styles for Accessibility */
+:is(a, button, input[type="checkbox"], input[type="text"], input[type="password"]):focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* NEW: Consolidated Spinner Animation */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

@@ -1,15 +1,6 @@
-// ai_handler.js
+// ai_handler.ts
 // AI-powered features using Google Gemini API
-// 
-// This module provides 6 AI-powered features:
-// 1. Page Analysis - Identifies privacy threats, dark patterns, and annoyances
-// 2. Element Hiding - Generates CSS selectors from natural language descriptions
-// 3. Privacy Policy Summarization - Extracts key data practices from policies
-// 4. Self-Healing Rules - Automatically repairs broken CSS selectors
-// 5. Adblock Wall Defeat - Removes anti-adblock overlays
-// 6. Cookie Consent Automation - Automatically handles cookie banners
-
-import { GoogleGenAI, Type } from '../google-genai.js';
+import { GoogleGenAI, Type, GenerativeModel, SchemaType } from '../google-genai.js';
 
 // Configuration
 const MODEL_NAME = 'gemini-2.5-flash';
@@ -24,28 +15,109 @@ const MAX_NETWORK_LOG_ENTRIES = 50;
 const MAX_URL_LENGTH = 200;
 
 // AI Configuration
-const AI_TEMPERATURE = 0.1; // Low temperature for consistent, deterministic output
+const AI_TEMPERATURE = 0.1;
 
-let aiInstance = null;
+let aiInstance: GoogleGenAI | null = null;
+
+// --- Interfaces ---
+
+interface NetworkLogEntry {
+    url: string;
+    type: string;
+    status: string;
+}
+
+interface Threat {
+    url: string;
+    category?: string;
+    reason?: string;
+}
+
+interface VisualAnnoyance {
+    description: string;
+    suggestedSelector: string;
+}
+
+interface HeuristicMatch {
+    url: string;
+    keyword: string;
+}
+
+interface DarkPattern {
+    patternName: string;
+    description: string;
+}
+
+interface AnalysisResult {
+    result?: {
+        networkThreats?: Threat[];
+        visualAnnoyances?: VisualAnnoyance[];
+        heuristicMatches?: HeuristicMatch[];
+        darkPatterns?: DarkPattern[];
+    };
+    error?: string;
+}
+
+interface HidingResult {
+    selector?: string;
+    error?: string;
+}
+
+interface SelectorContext {
+    tag?: string;
+    text?: string;
+    classes?: string;
+    tabId: number;
+}
+
+interface PrivacyPolicySummary {
+    summary: string;
+    dataCollected: string[];
+    sharedWith: string[];
+}
+
+interface SummaryResult extends Partial<PrivacyPolicySummary> {
+    error?: string;
+}
+
+interface SelfHealResult {
+    newSelector?: string;
+    error?: string;
+}
+
+interface AdblockDefeatResult {
+    selectors?: {
+        overlaySelector: string;
+        scrollSelector: string;
+    };
+    error?: string;
+}
+
+interface CookieConsentResult {
+    result?: {
+        selector: string | null;
+        action: string | null;
+    };
+    error?: string;
+}
+
+
+// --- Functions ---
 
 /**
  * Resets the cached AI client instance.
- * Called when the user updates their API key in settings.
  */
-export function resetAiClient() {
+export function resetAiClient(): void {
     aiInstance = null;
 }
 
 /**
  * Gets or creates the Gemini AI client instance.
- * @private
- * @returns {Promise<GoogleGenAI>} The AI client instance
- * @throws {Error} If API key is not configured
  */
-async function getAiClient() {
+async function getAiClient(): Promise<GoogleGenAI> {
     if (aiInstance) return aiInstance;
 
-    const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey');
+    const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey') as { geminiApiKey?: string };
     if (!geminiApiKey) {
         throw new Error("Gemini API key is not set. Please set it in the extension settings.");
     }
@@ -54,21 +126,17 @@ async function getAiClient() {
 }
 
 /**
- * Reliably focuses a tab, performs an action (like screenshotting), and returns the result.
- * This replaces the previous, more complex logic to prevent race conditions.
- * @private
- * @param {number} tabId - The ID of the tab to perform the action on
- * @param {Function} action - A function that takes the tab object and returns a Promise
- * @returns {Promise<any>} The result of the action
- * @throws {Error} If tab doesn't exist, is being interacted with, or is closed during action
+ * Reliably focuses a tab and performs an action.
  */
-async function performActionOnVisibleTab(tabId, action) {
-    let tab;
+async function performActionOnVisibleTab<T>(tabId: number, action: (tab: chrome.tabs.Tab) => Promise<T>): Promise<T> {
+    let tab: chrome.tabs.Tab;
     try {
         tab = await chrome.tabs.get(tabId);
     } catch (error) {
         throw new Error(`Target tab with ID ${tabId} not found. It may have been closed.`);
     }
+
+    if (!tab.url) throw new Error("Tab has no URL.");
 
     // Check for restricted URLs
     if (tab.url.startsWith('chrome:') || tab.url.startsWith('edge:') || tab.url.startsWith('about:') || tab.url.startsWith('mozilla:') || tab.url.startsWith('view-source:')) {
@@ -87,13 +155,13 @@ async function performActionOnVisibleTab(tabId, action) {
         await chrome.windows.update(tab.windowId, { focused: true });
         await chrome.tabs.update(tabId, { active: true });
     } catch (error) {
-        if (String(error.message).includes('Tabs cannot be edited right now')) {
+        if (String((error as Error).message).includes('Tabs cannot be edited right now')) {
             throw new Error("Action aborted: User is interacting with the tab strip.");
         }
         throw error;
     }
 
-    await new Promise(resolve => setTimeout(resolve, 500)); // Increased delay for stability
+    await new Promise(resolve => setTimeout(resolve, 500));
 
     try {
         await chrome.tabs.get(tabId);
@@ -106,29 +174,13 @@ async function performActionOnVisibleTab(tabId, action) {
 
 
 /**
- * Analyzes a webpage for privacy threats, visual annoyances, and dark patterns using AI.
- * 
- * Features detected:
- * - Network tracking threats (blocked third-party scripts)
- * - Visual annoyances (ads, banners, popups)
- * - Heuristic pattern matches (common tracking URLs)
- * - Dark patterns (manipulative UI elements)
- * 
- * @param {number} tabId - The ID of the tab to analyze
- * @param {string} pageUrl - The URL of the page being analyzed
- * @param {Array<Object>} networkLog - Array of network requests with status and type
- * @returns {Promise<{result?: Object, error?: string}>} Analysis results with threats or error message
- * 
- * @property {Object} result - The analysis results
- * @property {Array<Object>} result.networkThreats - Identified network-level threats
- * @property {Array<Object>} result.visualAnnoyances - Visual elements to hide
- * @property {Array<Object>} result.heuristicMatches - Pattern-based threat detections
- * @property {Array<Object>} result.darkPatterns - Manipulative UI patterns
+ * Analyzes a webpage for privacy threats using AI.
  */
-export async function analyzePage(tabId, pageUrl, networkLog) {
+export async function analyzePage(tabId: number, pageUrl: string, networkLog: NetworkLogEntry[]): Promise<AnalysisResult> {
     try {
         const resultJson = await performActionOnVisibleTab(tabId, async (activeTab) => {
             const ai = await getAiClient();
+            if (!ai.models) throw new Error("AI models not initialized");
 
             const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
                 format: 'jpeg',
@@ -160,21 +212,19 @@ export async function analyzePage(tabId, pageUrl, networkLog) {
                 }
             };
 
-            // REFACTOR: The client now throws on error
             const response = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }, { text: `Network Log:\n${filteredLog.join('\n')}` }] },
-                config: { responseMimeType: 'application/json', responseSchema: responseSchema, temperature: AI_TEMPERATURE }
+                config: { responseMimeType: 'application/json', responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
             return JSON.parse(response.text);
         });
 
-        const { auditHistory = [] } = await chrome.storage.local.get('auditHistory');
+        const { auditHistory = [] } = await chrome.storage.local.get('auditHistory') as { auditHistory: any[] };
         const threatCount = (resultJson.networkThreats?.length || 0) + (resultJson.visualAnnoyances?.length || 0) + (resultJson.heuristicMatches?.length || 0) + (resultJson.darkPatterns?.length || 0);
         const grade = threatCount === 0 ? 'A' : (threatCount <= 5 ? 'B' : (threatCount <= 10 ? 'C' : 'D'));
 
-        // Safely parse the domain from pageUrl
         let domain = 'unknown';
         try {
             domain = new URL(pageUrl).hostname;
@@ -192,20 +242,22 @@ export async function analyzePage(tabId, pageUrl, networkLog) {
         return { result: resultJson };
 
     } catch (error) {
-        if (error.message === 'QUOTA_EXCEEDED') {
+        if ((error as Error).message === 'QUOTA_EXCEEDED') {
             console.warn("ZenithGuard AI: Quota exceeded.");
             return { error: 'QUOTA_EXCEEDED' };
         }
-        console.error("ZenithGuard AI Analyzer Error:", error.message);
-        return { error: error.message };
+        console.error("ZenithGuard AI Analyzer Error:", (error as Error).message);
+        return { error: (error as Error).message };
     }
 }
 
 
-export async function handleHideElementWithAI(description, context) {
+export async function handleHideElementWithAI(description: string, context: SelectorContext): Promise<HidingResult> {
     try {
         const resultData = await performActionOnVisibleTab(context.tabId, async (activeTab) => {
             const ai = await getAiClient();
+            if (!ai.models) throw new Error("AI models not initialized");
+
             const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_LOW
@@ -224,7 +276,7 @@ export async function handleHideElementWithAI(description, context) {
             const response = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }] },
-                config: { responseMimeType: "application/json", responseSchema: responseSchema, temperature: AI_TEMPERATURE }
+                config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
             const resultJson = JSON.parse(response.text);
@@ -235,19 +287,19 @@ export async function handleHideElementWithAI(description, context) {
         });
         return resultData;
     } catch (error) {
-        if (error.message === 'QUOTA_EXCEEDED') {
-            console.warn("ZenithGuard AI: Quota exceeded.");
+        if ((error as Error).message === 'QUOTA_EXCEEDED') {
             return { error: 'QUOTA_EXCEEDED' };
         }
-        console.error("ZenithGuard AI Hider Error:", error.message);
-        return { error: error.message };
+        console.error("ZenithGuard AI Hider Error:", (error as Error).message);
+        return { error: (error as Error).message };
     }
 }
 
 
-export async function handleSummarizePrivacyPolicy(policyUrl) {
+export async function handleSummarizePrivacyPolicy(policyUrl: string): Promise<SummaryResult> {
     try {
         const ai = await getAiClient();
+        if (!ai.models) throw new Error("AI models not initialized");
 
         const response = await fetch(policyUrl, { signal: AbortSignal.timeout(15000) });
         if (!response.ok) throw new Error("Could not fetch the policy page.");
@@ -264,22 +316,23 @@ export async function handleSummarizePrivacyPolicy(policyUrl) {
             model: MODEL_NAME,
             contents: { parts: [{ text: `Privacy Policy Text:\n\n${html}` }] },
             systemInstruction: { parts: [{ text: systemInstruction }] },
-            config: { responseMimeType: 'application/json', responseSchema: responseSchema, temperature: 0.0 }
+            config: { responseMimeType: 'application/json', responseSchema: responseSchema as unknown as SchemaType, temperature: 0.0 }
         });
 
         return JSON.parse(aiResponse.text);
 
     } catch (error) {
         console.error("ZenithGuard: Failed to summarize privacy policy:", error);
-        // REFACTOR: Return an error object for the caller to handle
-        return { error: error.message };
+        return { error: (error as Error).message };
     }
 }
 
-export async function handleSelfHealRule(brokenSelector, tabId, pageUrl) {
+export async function handleSelfHealRule(brokenSelector: string, tabId: number, pageUrl: string): Promise<SelfHealResult> {
     try {
         const resultData = await performActionOnVisibleTab(tabId, async (activeTab) => {
             const ai = await getAiClient();
+            if (!ai.models) throw new Error("AI models not initialized");
+
             const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_LOW
@@ -295,7 +348,7 @@ export async function handleSelfHealRule(brokenSelector, tabId, pageUrl) {
             const response = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }] },
-                config: { responseMimeType: "application/json", responseSchema: responseSchema, temperature: AI_TEMPERATURE }
+                config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
             const resultJson = JSON.parse(response.text);
@@ -306,18 +359,17 @@ export async function handleSelfHealRule(brokenSelector, tabId, pageUrl) {
         });
         return resultData;
     } catch (error) {
-        if (error.message === 'QUOTA_EXCEEDED') {
-            console.warn("ZenithGuard AI: Quota exceeded.");
+        if ((error as Error).message === 'QUOTA_EXCEEDED') {
             return { error: 'QUOTA_EXCEEDED' };
         }
-        console.error("ZenithGuard Self-Heal Error:", error.message);
-        return { error: error.message };
+        console.error("ZenithGuard Self-Heal Error:", (error as Error).message);
+        return { error: (error as Error).message };
     }
 }
 
-export async function handleDefeatAdblockWall(tabId, onProgress) {
+export async function handleDefeatAdblockWall(tabId: number, onProgress?: (msg: string) => Promise<void>): Promise<AdblockDefeatResult> {
     try {
-        const doProgress = async (message) => {
+        const doProgress = async (message: string) => {
             if (onProgress) await onProgress(message);
         };
 
@@ -325,6 +377,8 @@ export async function handleDefeatAdblockWall(tabId, onProgress) {
             await doProgress('Capturing page state...');
 
             const ai = await getAiClient();
+            if (!ai.models) throw new Error("AI models not initialized");
+
             const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, { format: 'jpeg', quality: 30 });
             const base64Screenshot = screenshotDataUrl.split(',')[1];
 
@@ -337,7 +391,7 @@ export async function handleDefeatAdblockWall(tabId, onProgress) {
             const response = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }] },
-                config: { responseMimeType: "application/json", responseSchema: responseSchema, temperature: AI_TEMPERATURE }
+                config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
             const resultJson = JSON.parse(response.text);
@@ -348,19 +402,19 @@ export async function handleDefeatAdblockWall(tabId, onProgress) {
         });
         return { selectors };
     } catch (error) {
-        if (error.message === 'QUOTA_EXCEEDED') {
-            console.warn("ZenithGuard AI: Quota exceeded.");
+        if ((error as Error).message === 'QUOTA_EXCEEDED') {
             return { error: 'QUOTA_EXCEEDED' };
         }
-        console.error("ZenithGuard Adblock Wall Defeat Error:", error.message);
-        return { error: error.message };
+        console.error("ZenithGuard Adblock Wall Defeat Error:", (error as Error).message);
+        return { error: (error as Error).message };
     }
 }
 
-export async function handleCookieConsent(tabId) {
+export async function handleCookieConsent(tabId: number): Promise<CookieConsentResult> {
     try {
         const resultData = await performActionOnVisibleTab(tabId, async (activeTab) => {
             const ai = await getAiClient();
+            if (!ai.models) throw new Error("AI models not initialized");
 
             const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
                 format: 'jpeg',
@@ -380,7 +434,7 @@ export async function handleCookieConsent(tabId) {
             const response = await ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }] },
-                config: { responseMimeType: "application/json", responseSchema: responseSchema, temperature: AI_TEMPERATURE }
+                config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
             const resultJson = JSON.parse(response.text);
@@ -394,18 +448,18 @@ export async function handleCookieConsent(tabId) {
         return resultData;
 
     } catch (error) {
-        if (error.message === 'QUOTA_EXCEEDED') {
-            console.warn("ZenithGuard AI: Quota exceeded.");
+        const err = error as Error;
+        if (err.message === 'QUOTA_EXCEEDED') {
             return { error: 'QUOTA_EXCEEDED' };
         }
-        if (error.message && error.message.includes("could not identify a consent button")) {
+        if (err.message && err.message.includes("could not identify a consent button")) {
             return { result: { selector: null, action: null } };
         }
-        if (error.message && (error.message.includes("Cannot capture restricted page") || error.message.includes("File access not enabled") || error.message.includes("Tabs cannot be edited") || error.message.includes("Action aborted"))) {
-            console.warn("ZenithGuard Cookie Consent skipped:", error.message);
-            return { error: error.message };
+        if (err.message && (err.message.includes("Cannot capture restricted page") || err.message.includes("File access not enabled") || err.message.includes("Tabs cannot be edited") || err.message.includes("Action aborted"))) {
+            console.warn("ZenithGuard Cookie Consent skipped:", err.message);
+            return { error: err.message };
         }
-        console.error("ZenithGuard Cookie Consent Error:", error.message);
-        return { error: error.message };
+        console.error("ZenithGuard Cookie Consent Error:", err.message);
+        return { error: err.message };
     }
 }

@@ -16,7 +16,7 @@ export async function migrateOldRules() {
         }
     }
 
-    const { customHidingRules = {} } = await chrome.storage.sync.get('customHidingRules');
+    const { customHidingRules = {} } = await chrome.storage.sync.get('customHidingRules') as { customHidingRules?: Record<string, any[]> };
     let hidingRulesNeedUpdate = false;
     for (const domain in customHidingRules) {
         if (Array.isArray(customHidingRules[domain]) && customHidingRules[domain].length > 0 && typeof customHidingRules[domain][0] === 'string') {
@@ -33,7 +33,7 @@ export async function migrateOldRules() {
         operations.push(chrome.storage.sync.set({ customHidingRules }));
     }
     // --- NEW: Migrate Placeholder URLs ---
-    const urlSettings = await chrome.storage.sync.get(['trackerListUrl', 'youtubeRulesUrl']);
+    const urlSettings = await chrome.storage.sync.get(['trackerListUrl', 'youtubeRulesUrl']) as { trackerListUrl?: string; youtubeRulesUrl?: string };
     let urlsNeedUpdate = false;
 
     if (urlSettings.trackerListUrl && urlSettings.trackerListUrl.includes('YOUR_USERNAME')) {
@@ -102,9 +102,9 @@ export async function initializeSettingsIfNeeded() {
     });
 }
 
-export async function updateDailyStats(type, resourceType) {
+export async function updateDailyStats(type: string, resourceType: string) {
     const today = new Date().toISOString().slice(0, 10);
-    const { dailyBlocks = {}, dailyPerformance = {} } = await chrome.storage.local.get(['dailyBlocks', 'dailyPerformance']);
+    const { dailyBlocks = {}, dailyPerformance = {} } = await chrome.storage.local.get(['dailyBlocks', 'dailyPerformance']) as { dailyBlocks?: Record<string, any>; dailyPerformance?: Record<string, any> };
 
     // --- Update Block Counts ---
     if (!dailyBlocks[today]) {
@@ -123,7 +123,7 @@ export async function updateDailyStats(type, resourceType) {
     }
 
     // Estimated weights in KB
-    const weights = {
+    const weights: Record<string, number> = {
         'image': 150,
         'media': 1500,
         'script': 50,

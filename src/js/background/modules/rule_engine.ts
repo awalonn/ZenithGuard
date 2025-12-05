@@ -1,8 +1,9 @@
-// rule_engine.js
+// rule_engine.ts
 import { getURLCleanerRules } from './url_cleaner.js';
 import { getMalwareRules } from './malware_protection.js';
 import { getLatestYouTubeRules } from './youtube_rules_updater.js';
 import { BUNDLED_LISTS_PRESETS } from '../../settings/modules/subscription_presets.js';
+import { AppSettings, FilterList } from '../../types.js';
 
 // --- Constants ---
 export const HEURISTIC_RULE_ID_START = 100;
@@ -22,7 +23,7 @@ const KEYWORD_COUNT_LIMIT = 20;
 // --- State ---
 let isApplyingRules = false;
 
-export function getRuleSource(ruleId) {
+export function getRuleSource(ruleId: number) {
     if (ruleId >= DEFAULT_BLOCKLIST_RULE_ID_START) return 'Default Blocklist';
     if (ruleId >= ALLOW_RULE_ID_START) return 'User Allowlist'; // NEW
     if (ruleId >= FILTER_LIST_RULE_ID_START) return 'Filter List';
@@ -33,14 +34,14 @@ export function getRuleSource(ruleId) {
     if (ruleId >= NETWORK_BLOCK_RULE_ID_START) return 'Network Blocklist';
     if (ruleId >= HEURISTIC_RULE_ID_START) return 'Heuristic Engine';
     // Check for 0 is a fallback for static rules, which don't have debug info
-    const staticRule = BUNDLED_LISTS_PRESETS.find(p => p.id === ruleId);
+    const staticRule = BUNDLED_LISTS_PRESETS.find(p => p.id === String(ruleId));
     if (staticRule) return staticRule.name;
 
     return 'Unknown';
 }
 
 
-function escapeRegex(str) {
+function escapeRegex(str: string) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
@@ -63,10 +64,10 @@ export async function applyAllRules() {
             'isolationModeSites', 'isYouTubeAdBlockingEnabled', 'filterLists',
             'enabledStaticRulesets',
             'isProtectionEnabled' // NEW: Get global on/off state
-        ]);
+        ]) as AppSettings;
         const { isProtectionEnabled = true } = settings; // Default to ON
 
-        const { protectionPausedUntil } = await chrome.storage.session.get('protectionPausedUntil');
+        const { protectionPausedUntil } = await chrome.storage.session.get('protectionPausedUntil') as { protectionPausedUntil?: number };
         const isPaused = protectionPausedUntil && protectionPausedUntil > Date.now();
 
         const allStaticRulesetIds = BUNDLED_LISTS_PRESETS.map(p => p.id);
@@ -92,7 +93,7 @@ export async function applyAllRules() {
         }
 
         // --- If Not Paused or Disabled, Build All Rules ---
-        let addRules = [];
+        let addRules: chrome.declarativeNetRequest.Rule[] = [];
 
         // --- 1. Re-enable Static Rulesets ---
         // (This runs on "Resume" or any other rules change)
@@ -104,34 +105,30 @@ export async function applyAllRules() {
         });
 
         // --- 2. Build Per-Site "ALLOW" Rules (THE FIX) ---
-        const disabledForSite = settings.disabledSites || [];
+        const disabledForSite = (settings.disabledSites as string[]) || [];
         if (disabledForSite.length > 0) {
             let allowRuleId = ALLOW_RULE_ID_START;
-            const allowRules = [];
+            const allowRules: chrome.declarativeNetRequest.Rule[] = [];
 
             for (const domain of disabledForSite) {
                 // Rule 1: Whitelist requests *TO* this domain
                 allowRules.push({
                     id: allowRuleId++,
-                    // --- THIS IS THE FIX ---
                     priority: 5, // Must be higher than all block rules
-                    // --- END FIX ---
-                    action: { type: 'allow' },
+                    action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
                     condition: {
                         "requestDomains": [domain],
-                        "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"]
+                        "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"] as chrome.declarativeNetRequest.ResourceType[]
                     }
                 });
                 // Rule 2: Whitelist requests *FROM* this domain
                 allowRules.push({
                     id: allowRuleId++,
-                    // --- THIS IS THE FIX ---
                     priority: 5, // Must be higher than all block rules
-                    // --- END FIX ---
-                    action: { type: 'allow' },
+                    action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
                     condition: {
                         "initiatorDomains": [domain],
-                        "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"]
+                        "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"] as chrome.declarativeNetRequest.ResourceType[]
                     }
                 });
             }
@@ -145,10 +142,10 @@ export async function applyAllRules() {
         const highPriorityRulesets = [
             await getYouTubeAdBlockingRules(settings),
             getIsolationModeRules(settings.isolationModeSites),
-            settings.isHeuristicEngineEnabled ? getHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist) : [],
+            settings.isHeuristicEngineEnabled ? getHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist || []) : [],
             getDefaultBlockRules(settings.defaultBlocklist),
             getNetworkBlockRules(settings.networkBlocklist),
-            settings.isUrlCleanerEnabled ? getURLCleanerRules(URL_CLEANER_RULE_ID_START) : []
+            settings.isUrlCleanerEnabled ? getURLCleanerRules(URL_CLEANER_RULE_ID_START, []) : []
         ];
 
         for (const ruleset of highPriorityRulesets) {
@@ -158,7 +155,7 @@ export async function applyAllRules() {
         availableBudget = Math.max(0, availableBudget - addRules.length);
 
         if (settings.isMalwareProtectionEnabled && availableBudget > 0) {
-            const malwareRules = await getMalwareRules(MALWARE_RULE_ID_START, availableBudget);
+            const malwareRules = await getMalwareRules(MALWARE_RULE_ID_START, [], availableBudget);
             addRules.push(...malwareRules);
             availableBudget = Math.max(0, availableBudget - malwareRules.length);
         }
@@ -183,7 +180,7 @@ export async function applyAllRules() {
 }
 
 // REFACTORED: Removed excludedDomains
-async function getFilterListRules(filterLists, ruleBudget) {
+async function getFilterListRules(filterLists: FilterList[], ruleBudget: number) {
     const allNetworkRules = new Set();
     const lists = filterLists || [];
 
@@ -194,7 +191,7 @@ async function getFilterListRules(filterLists, ruleBudget) {
 
     // OPTIMIZATION: Batch storage retrieval
     const cacheKeys = enabledLists.map(list => `filterlist-${list.url}`);
-    const cachedData = await chrome.storage.local.get(cacheKeys);
+    const cachedData = await chrome.storage.local.get(cacheKeys) as { [key: string]: { networkRules: string[] } };
 
     for (const key of cacheKeys) {
         if (cachedData[key] && cachedData[key].networkRules) {
@@ -204,7 +201,7 @@ async function getFilterListRules(filterLists, ruleBudget) {
 
     if (allNetworkRules.size === 0) return [];
 
-    const addRules = [];
+    const addRules: chrome.declarativeNetRequest.Rule[] = [];
     let ruleId = FILTER_LIST_RULE_ID_START;
 
     for (const urlFilter of allNetworkRules) {
@@ -212,15 +209,14 @@ async function getFilterListRules(filterLists, ruleBudget) {
             console.warn(`ZenithGuard: *Custom* filter list rule budget (${ruleBudget}) reached. Some rules were not added.`);
             break;
         }
-        if (urlFilter.length > 0) {
+        if (typeof urlFilter === 'string' && urlFilter.length > 0) {
             addRules.push({
                 id: ruleId++,
                 priority: 3,
-                action: { type: 'block' },
+                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
                 condition: {
                     urlFilter: urlFilter,
-                    resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket']
-                    // excludedInitiatorDomains: REMOVED
+                    resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket'] as chrome.declarativeNetRequest.ResourceType[]
                 }
             });
         }
@@ -230,7 +226,7 @@ async function getFilterListRules(filterLists, ruleBudget) {
 
 
 // REFACTORED: Removed excludedDomains
-function getIsolationModeRules(sites) {
+function getIsolationModeRules(sites: any[]) {
     if (!sites) return [];
     return sites
         // This rule should still apply even if a site is "disabled"
@@ -238,18 +234,18 @@ function getIsolationModeRules(sites) {
         .map((site, index) => ({
             id: ISOLATION_MODE_RULE_ID_START + index,
             priority: 1,
-            action: { type: 'block' },
+            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
             condition: {
                 initiatorDomains: [site.value],
-                domainType: 'thirdParty',
-                resourceTypes: ['script', 'object', 'sub_frame']
+                domainType: 'thirdParty' as chrome.declarativeNetRequest.DomainType,
+                resourceTypes: ['script', 'object', 'sub_frame'] as chrome.declarativeNetRequest.ResourceType[]
             }
         }));
 }
 
 // REFACTORED: Removed excludedDomains, merged allowlist
-function getHeuristicRules(keywords, allowlist) {
-    const rules = [];
+function getHeuristicRules(keywords: any[], allowlist: any[]) {
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
     if (!keywords || keywords.length === 0) return rules;
 
     const enabledKeywords = keywords
@@ -265,7 +261,7 @@ function getHeuristicRules(keywords, allowlist) {
     const excludedInitiators = enabledAllowlistDomains.length > 0 ? enabledAllowlistDomains : undefined;
 
 
-    let currentRegexParts = [];
+    let currentRegexParts: string[] = [];
     let currentRegexLength = 0;
     let ruleCounter = 0;
 
@@ -282,10 +278,10 @@ function getHeuristicRules(keywords, allowlist) {
             rules.push({
                 id: HEURISTIC_RULE_ID_START + ruleCounter++,
                 priority: 2,
-                action: { type: 'block' },
+                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
                 condition: {
                     regexFilter: currentRegexParts.join('|'),
-                    resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'],
+                    resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
                     excludedInitiatorDomains: excludedInitiators
                 }
             });
@@ -302,10 +298,10 @@ function getHeuristicRules(keywords, allowlist) {
         rules.push({
             id: HEURISTIC_RULE_ID_START + ruleCounter,
             priority: 2,
-            action: { type: 'block' },
+            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
             condition: {
                 regexFilter: currentRegexParts.join('|'),
-                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'],
+                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
                 excludedInitiatorDomains: excludedInitiators
             }
         });
@@ -315,7 +311,7 @@ function getHeuristicRules(keywords, allowlist) {
 }
 
 // REFACTORED: Removed excludedDomains
-function getDefaultBlockRules(blocklist) {
+function getDefaultBlockRules(blocklist: any[]) {
     if (!blocklist) return [];
     return blocklist
         .filter(item => item.enabled)
@@ -323,51 +319,47 @@ function getDefaultBlockRules(blocklist) {
             const isRegex = item.value.startsWith('/') && (item.value.endsWith('/') || item.value.endsWith('/i'));
 
             const condition = isRegex
-                ? { regexFilter: item.value.slice(1, -1), resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] }
-                : { urlFilter: item.value, resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other'] };
-
-            // excludedInitiatorDomains: REMOVED
+                ? { regexFilter: item.value.slice(1, -1), resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[] }
+                : { urlFilter: item.value, resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other'] as chrome.declarativeNetRequest.ResourceType[] };
 
             return {
                 id: DEFAULT_BLOCKLIST_RULE_ID_START + index,
                 priority: 2,
-                action: { type: 'block' },
+                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
                 condition: condition
             };
         });
 }
 
 // REFACTORED: Removed excludedDomains
-function getNetworkBlockRules(blocklist) {
+function getNetworkBlockRules(blocklist: any[]) {
     if (!blocklist) return [];
     return blocklist
         .filter(item => item.enabled)
         .map((item, index) => ({
             id: NETWORK_BLOCK_RULE_ID_START + index,
             priority: 1, // This is high priority for user rules
-            action: { type: 'block' },
+            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
             condition: {
                 urlFilter: `||${item.value}^`,
-                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other']
-                // excludedInitiatorDomains: REMOVED
+                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other'] as chrome.declarativeNetRequest.ResourceType[]
             }
         }));
 }
 
 // REFACTORED: Removed excludedDomains
-async function getYouTubeAdBlockingRules(settings) {
+async function getYouTubeAdBlockingRules(settings: AppSettings) {
     if (!settings.isYouTubeAdBlockingEnabled) {
         return [];
     }
     const youtubeDomains = ['youtube.com', 'm.youtube.com', 'music.youtube.com'];
-    // excludedDomains check: REMOVED (will be handled by global "allow" rule)
 
     // Hardcoded fallback rules
     let rules = [
-        { id: YOUTUBE_AD_RULE_ID_START, priority: 1, action: { "type": "block" }, condition: { "urlFilter": "||youtube.com/api/stats/ads", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest"] } },
-        { id: YOUTUBE_AD_RULE_ID_START + 1, priority: 1, action: { "type": "block" }, condition: { "urlFilter": "||googleads.g.doubleclick.net^", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest", "sub_frame", "script"] } },
-        { id: YOUTUBE_AD_RULE_ID_START + 2, priority: 1, action: { "type": "block" }, condition: { "urlFilter": "||googlesyndication.com^", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest", "sub_frame", "script"] } },
-        { id: YOUTUBE_AD_RULE_ID_START + 3, priority: 1, action: { "type": "block" }, condition: { "regexFilter": "googlevideo\\.com/videoplayback.*(&adformat=|&prev_ad_id=)", "resourceTypes": ["xmlhttprequest", "media"] } }
+        { id: YOUTUBE_AD_RULE_ID_START, priority: 1, action: { "type": "block" as chrome.declarativeNetRequest.RuleActionType }, condition: { "urlFilter": "||youtube.com/api/stats/ads", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest"] as chrome.declarativeNetRequest.ResourceType[] } },
+        { id: YOUTUBE_AD_RULE_ID_START + 1, priority: 1, action: { "type": "block" as chrome.declarativeNetRequest.RuleActionType }, condition: { "urlFilter": "||googleads.g.doubleclick.net^", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest", "sub_frame", "script"] as chrome.declarativeNetRequest.ResourceType[] } },
+        { id: YOUTUBE_AD_RULE_ID_START + 2, priority: 1, action: { "type": "block" as chrome.declarativeNetRequest.RuleActionType }, condition: { "urlFilter": "||googlesyndication.com^", "initiatorDomains": youtubeDomains, "resourceTypes": ["xmlhttprequest", "sub_frame", "script"] as chrome.declarativeNetRequest.ResourceType[] } },
+        { id: YOUTUBE_AD_RULE_ID_START + 3, priority: 1, action: { "type": "block" as chrome.declarativeNetRequest.RuleActionType }, condition: { "regexFilter": "googlevideo\\.com/videoplayback.*(&adformat=|&prev_ad_id=)", "resourceTypes": ["xmlhttprequest", "media"] as chrome.declarativeNetRequest.ResourceType[] } }
     ];
 
     // Fetch and add dynamic rules
@@ -375,19 +367,19 @@ async function getYouTubeAdBlockingRules(settings) {
     if (dynamicRules) {
         let ruleIdCounter = YOUTUBE_AD_RULE_ID_START + 100; // Start dynamic rules at a higher offset
         if (dynamicRules.regexFilters) {
-            rules.push(...dynamicRules.regexFilters.map(regex => ({
+            rules.push(...dynamicRules.regexFilters.map((regex: string) => ({
                 id: ruleIdCounter++,
                 priority: 1,
-                action: { type: 'block' },
-                condition: { regexFilter: regex, initiatorDomains: youtubeDomains, resourceTypes: ["xmlhttprequest", "media", "script"] }
+                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
+                condition: { regexFilter: regex, initiatorDomains: youtubeDomains, resourceTypes: ["xmlhttprequest", "media", "script"] as chrome.declarativeNetRequest.ResourceType[] }
             })));
         }
         if (dynamicRules.urlFilters) {
-            rules.push(...dynamicRules.urlFilters.map(urlFilter => ({
+            rules.push(...dynamicRules.urlFilters.map((urlFilter: string) => ({
                 id: ruleIdCounter++,
                 priority: 1,
-                action: { type: 'block' },
-                condition: { urlFilter: urlFilter, initiatorDomains: youtubeDomains, resourceTypes: ["xmlhttprequest", "sub_frame", "script"] }
+                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
+                condition: { urlFilter: urlFilter, initiatorDomains: youtubeDomains, resourceTypes: ["xmlhttprequest", "sub_frame", "script"] as chrome.declarativeNetRequest.ResourceType[] }
             })));
         }
     }

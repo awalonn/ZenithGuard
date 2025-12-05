@@ -9,7 +9,7 @@ const TRACKING_PARAMETERS = [
   // Google Ads
   'gclid', 'gclsrc', 'dclid',
   // HubSpot
-'_hsenc', '_hsmi', 'hsCtaTracking',
+  '_hsenc', '_hsmi', 'hsCtaTracking',
   // Marketo
   'mkt_tok',
   // Mailchimp
@@ -28,27 +28,27 @@ const TRACKING_PARAMETERS = [
  * @param {string[]} excludedDomains - A list of domains where stripping should not occur.
  * @returns {chrome.declarativeNetRequest.Rule[]} An array of rules.
  */
-export function getURLCleanerRules(startingRuleId, excludedDomains) {
+export function getURLCleanerRules(startingRuleId: number, excludedDomains: string[]): chrome.declarativeNetRequest.Rule[] {
   if (!TRACKING_PARAMETERS.length) {
     return [];
   }
-  
-  const rules = [];
+
+  const rules: chrome.declarativeNetRequest.Rule[] = [];
   let ruleId = startingRuleId;
   const CHUNK_SIZE = 15; // Split into smaller chunks to avoid regex complexity limits.
 
   for (let i = 0; i < TRACKING_PARAMETERS.length; i += CHUNK_SIZE) {
     const chunk = TRACKING_PARAMETERS.slice(i, i + CHUNK_SIZE);
-    
+
     // This simplified regex is more efficient and avoids the compilation size limit.
     // It looks for a URL query parameter separator (? or &) followed by a tracking keyword and an equals sign.
     const regex = `[?&](${chunk.join('|')})=`;
 
-    const rule = {
+    const rule: chrome.declarativeNetRequest.Rule = {
       id: ruleId++,
       priority: 1,
       action: {
-        type: 'redirect',
+        type: 'redirect' as chrome.declarativeNetRequest.RuleActionType,
         redirect: {
           transform: {
             queryTransform: {
@@ -60,14 +60,14 @@ export function getURLCleanerRules(startingRuleId, excludedDomains) {
       },
       condition: {
         regexFilter: regex,
-        resourceTypes: ['main_frame', 'sub_frame'],
+        resourceTypes: ['main_frame', 'sub_frame'] as chrome.declarativeNetRequest.ResourceType[],
       }
     };
 
     if (excludedDomains && excludedDomains.length > 0) {
       rule.condition.excludedInitiatorDomains = excludedDomains;
     }
-    
+
     rules.push(rule);
   }
 

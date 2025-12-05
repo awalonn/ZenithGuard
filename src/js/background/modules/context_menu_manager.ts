@@ -6,13 +6,17 @@ export function createContextMenus() {
 }
 
 export function initializeContextMenuListeners() {
-    chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-        const messageType = {
+    chrome.contextMenus.onClicked.addListener(async (info: chrome.contextMenus.OnClickData, tab?: chrome.tabs.Tab) => {
+        if (!tab || !tab.id) return;
+
+        const messageTypeMap: Record<string, string> = {
             'zenithguard-quick-hide': 'QUICK_HIDE_ELEMENT',
             'zenithguard-ai-hide-targeted': 'START_AI_HIDING_TARGETED'
-        }[info.menuItemId];
+        };
 
-        if (messageType && tab.id) {
+        const messageType = messageTypeMap[info.menuItemId];
+
+        if (messageType) {
             if (messageType === 'START_AI_HIDING_TARGETED') {
                 try {
                     // AI Hider script injection

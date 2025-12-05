@@ -1,8 +1,8 @@
-// breach_checker.js
+// breach_checker.ts
 
 // A curated, offline list of domains known to have had major data breaches.
 // This is not exhaustive but covers many prominent examples.
-export const BREACHED_DOMAINS = [
+export const BREACHED_DOMAINS: string[] = [
     'linkedin.com',
     'adobe.com',
     'canva.com',
@@ -26,10 +26,10 @@ export const BREACHED_DOMAINS = [
  * @param {string[]} breachList - The list of breached domains.
  * @returns {boolean} - True if the domain is considered breached.
  */
-export function isDomainBreached(domain, breachList) {
+export function isDomainBreached(domain: string, breachList: string[]): boolean {
     if (!domain) return false;
     const domainParts = domain.split('.').reverse();
-    
+
     // Check for matches from the most specific to the least specific part of the domain.
     // e.g., for 'sub.example.co.uk', it checks:
     // 1. 'sub.example.co.uk'
@@ -41,6 +41,6 @@ export function isDomainBreached(domain, breachList) {
             return true;
         }
     }
-    
+
     return false;
 }

@@ -1,5 +1,6 @@
 // src/js/welcome/welcome.ts
 import { AppSettings } from '../types.js';
+import '../utils/toast.js'; // Import for side effects (window attachment)
 
 document.addEventListener('DOMContentLoaded', () => {
     const saveBtn = document.getElementById('save-start-btn') as HTMLButtonElement | null;

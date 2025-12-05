@@ -9,10 +9,11 @@ export default defineConfig({
         rollupOptions: {
             input: {
                 // Background
+                // Background
                 background: path.resolve(__dirname, 'src/js/background/background.ts'),
 
-                // Content Scripts (Bundled)
-                content_bundle: path.resolve(__dirname, 'src/js/content/content-bundle.ts'),
+                // Content Scripts (Bundled) - Moved to vite.content.config.js
+                // content_bundle: path.resolve(__dirname, 'src/js/content/content-bundle.ts'),
 
                 // Pages
                 popup: path.resolve(__dirname, 'src/pages/popup.html'),

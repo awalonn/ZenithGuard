@@ -162,3 +162,40 @@ Action: Styled the "Summarize with AI" button to match the rest of the premium U
 25. Feature: Performance Metrics (Completed)
 Files: js/background/modules/storage_manager.js, js/background/modules/network_logger.js
 Action: Implemented logic to calculate and store "Page Load Improvement" metrics based on blocked resource types. The dashboard gauge will now function correctly.
+
+26. Feature: Zapper Persistence (Completed)
+Files: js/settings/modules/rules_manager.ts, js/types.ts
+Action:
+1.  Implemented granular UI in Settings Dashboard to view and delete individual Zapper hiding rules.
+2.  Added `toggleDomainRules` and `deleteSingleHidingRule` to allow specific rule management without wiping an entire domain.
+
+27. Refactor: Strict TypeScript Migration (Completed)
+Files: js/background/modules/rule_engine.ts, js/types.ts
+Action:
+1.  Fully refactored `rule_engine.ts` to enforce strict TypeScript compliance.
+2.  Fixed 50+ type errors, including `any` types, argument mismatches, and `readonly` vs `mutable` array conflicts.
+3.  Addressed critical bugs in rule prioritization and `as const` type assertions for Chrome API compatibility.
+
+28. Refactor: Complete Codebase Stabilization (Completed)
+Files: js/settings/modules/rules_manager.ts, js/background/modules/*.ts
+Action:
+1.  Removed all remaining `@ts-ignore` suppressions in `rules_manager.ts`.
+2.  Standardized types across all background lists (`url_cleaner`, `malware_protection`, `tracker_list_updater`).
+3.  Fixed dynamic key access bugs in settings management.
+
+29. Bugfix: E2E Test Suite (Completed)
+Files: tests/e2e/popup.test.ts
+Action:
+1.  Debugged and resolved the "worker process failed to exit" error in Puppeteer tests.
+2.  Verified full test suite passes reliably (`npm run test:e2e`).
+
+30. DevOps: Release Automation (Completed)
+Files: .github/workflows/release.yml, README.md
+Action:
+1.  Implemented a GitHub Actions workflow to automatically build and package the extension.
+31. Bugfix: Content Module Loading (Completed)
+Files: vite.config.js, vite.content.config.js, package.json
+Action:
+1.  Resolved `SyntaxError: Cannot use import statement outside a module` in content scripts.
+2.  Split the build process: `vite.config.js` builds background/pages (ESM), and `vite.content.config.js` builds the content script bundle as an IIFE.
+3.  Updated `npm run build` to execute both builds sequentially.

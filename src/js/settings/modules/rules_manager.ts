@@ -4,6 +4,7 @@ import { AppSettings, HidingRule, FilterList } from '../../types.js';
 
 export class RulesManager {
     private settings: AppSettings;
+    private expandedDomains: Set<string> = new Set();
     private showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
 
     constructor(syncSettings: AppSettings, showToast: (msg: string, type?: 'success' | 'error' | 'info') => void) {
@@ -18,7 +19,6 @@ export class RulesManager {
         this.render();
     }
 
-    // --- Event Listener Attachment ---
     private attachEventListeners(): void {
         // Using event delegation on the body for dynamically added elements
         document.body.addEventListener('click', (e: MouseEvent) => {
@@ -26,7 +26,7 @@ export class RulesManager {
             const button = target.closest('button');
             if (!button) return;
 
-            const { action, type, index, url, rulesetId } = button.dataset;
+            const { action, type, index, url, rulesetId, domain } = button.dataset;
 
             if (action === 'delete-rule' && type) this.deleteRule(type as keyof AppSettings, Number(index));
             if (action === 'delete-hiding-domain') this.deleteHidingDomain(type as keyof AppSettings, String(index)); // index here is domain string
@@ -34,6 +34,10 @@ export class RulesManager {
             if (action === 'delete-subscription' && url) this.deleteSubscription(url);
             if (action === 'update-all-lists') this.updateAllLists(button);
             if (action === 'add-heuristic-keyword') this.addHeuristicKeyword();
+
+            // NEW: Granular Zapper Control
+            if (action === 'toggle-domain-rules' && domain) this.toggleDomainRules(domain);
+            if (action === 'delete-single-hiding-rule' && domain && index) this.deleteSingleHidingRule(domain, Number(index));
         });
 
         document.body.addEventListener('change', (e: Event) => {
@@ -44,7 +48,6 @@ export class RulesManager {
 
             if (action === 'toggle-rule' && type) this.toggleRule(type as keyof AppSettings, Number(index), toggle.checked);
             if (action === 'toggle-subscription' && url) this.toggleSubscription(url, toggle.checked);
-            // REFACTORED: Handle static ruleset toggles
             if (action === 'toggle-static-ruleset' && rulesetId) this.toggleStaticRuleset(rulesetId, toggle.checked);
         });
     }
@@ -64,8 +67,8 @@ export class RulesManager {
     async handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string): Promise<void> {
         // If static ruleset state changes, we must re-render
         if (area === 'sync' && changes.enabledStaticRulesets) {
-            // @ts-ignore - Dynamic property access
-            this.settings.enabledStaticRulesets = changes.enabledStaticRulesets.newValue;
+            // SAFE: We know 'enabledStaticRulesets' exists in AppSettings
+            this.settings.enabledStaticRulesets = changes.enabledStaticRulesets.newValue as string[];
             await this.renderBundledFilterLists();
             return; // Only re-render this part
         }
@@ -80,8 +83,9 @@ export class RulesManager {
         if (area === 'sync') {
             for (const key of syncKeys) {
                 if (changes[key]) {
-                    // @ts-ignore
-                    this.settings[key] = changes[key].newValue;
+                    const settingKey = key as keyof AppSettings;
+                    // @ts-expect-error - Dynamic assignment is complex with strict types, but safe here due to key whitelist
+                    this.settings[settingKey] = changes[key].newValue;
                     needsRender = true;
                 }
             }
@@ -147,14 +151,14 @@ export class RulesManager {
 
         tbody.innerHTML = customSubscriptions.map(list => {
             let statusHtml = '';
-            // @ts-ignore
+            // SAFE: FilterList interface has optional status
             const statusClass = (list.status || 'unknown').toLowerCase();
 
             if (statusClass === 'updating') {
                 statusHtml = `<div class="status-spinner"></div> <span class="status-text updating">Updating...</span>`;
             } else {
                 const dotClass = statusClass === 'success' ? 'success' : (statusClass === 'error' ? 'error' : 'unknown');
-                // @ts-ignore
+                // SAFE: status is string or undefined
                 statusHtml = `<div class="status-dot ${dotClass}"></div> <span class="status-text ${dotClass}">${list.status || 'Unknown'}</span>`;
             }
 
@@ -196,8 +200,9 @@ export class RulesManager {
             return;
         }
 
-        // @ts-ignore - Adding temporary status property
-        filterLists.push({ url, enabled: true, status: 'new', id: crypto.randomUUID(), name: 'Custom List' });
+        // SAFE: Explicitly matching FilterList interface including optional status
+        const newList: FilterList = { url, enabled: true, status: 'new', id: crypto.randomUUID(), name: 'Custom List' };
+        filterLists.push(newList);
         await chrome.storage.sync.set({ filterLists });
 
         // Immediately trigger an update for the new list
@@ -225,13 +230,13 @@ export class RulesManager {
             existingList.enabled = isEnabled;
         } else if (isEnabled) {
             // This case should be handled by addSubscription, but included for safety
-            // @ts-ignore
-            filterLists.push({ url, enabled: true, status: 'new', id: crypto.randomUUID(), name: 'Custom List' });
+            const newList: FilterList = { url, enabled: true, status: 'new', id: crypto.randomUUID(), name: 'Custom List' };
+            filterLists.push(newList);
         }
 
         await chrome.storage.sync.set({ filterLists });
 
-        // @ts-ignore
+        // SAFE: Check status safely
         if (isEnabled && (!existingList || existingList.status !== 'success')) {
             chrome.runtime.sendMessage({ type: 'FORCE_UPDATE_SINGLE_LIST', url });
         }
@@ -358,7 +363,7 @@ export class RulesManager {
 
         // NEW: Render Tracker List Status
         if (trackerCache && trackerCache.list) {
-            // @ts-ignore
+            // SAFE: Cast list values to CheckableDomain object structure
             const ruleCount = Object.values(trackerCache.list).reduce((acc: number, val: any) => acc + (val.domains?.length || 0), 0);
             trackerContainer.innerHTML = `
                 <h4>Privacy Insights Trackers</h4>
@@ -422,10 +427,11 @@ export class RulesManager {
         if (!tbody) return;
 
         tbody.innerHTML = rules.map((rule, index) => {
-            // @ts-ignore - rule typing needs to be unified
-            const val = typeof rule === 'string' ? rule : rule.value;
-            // @ts-ignore
-            const enabled = typeof rule === 'string' ? true : rule.enabled;
+            // SAFE: defaultBlocklist can be string[] or object[] based on legacy data
+            // We treat it as any for the mapping to handle both cases
+            const item = rule as any;
+            const val = typeof rule === 'string' ? rule : item.value;
+            const enabled = typeof rule === 'string' ? true : item.enabled;
             return `
             <tr>
                 <td class="rule-value-cell" title="${val}">${val}</td>
@@ -458,8 +464,8 @@ export class RulesManager {
         }
 
         const type = 'heuristicKeywords';
-        // @ts-ignore
-        const rules: string[] = this.settings[type] || [];
+        // SAFE: Explicit cast
+        let rules = (this.settings[type] as string[]) || [];
 
         if (rules.includes(value)) {
             this.showToast('This keyword already exists.', 'error');
@@ -467,13 +473,15 @@ export class RulesManager {
         }
 
         rules.push(value);
-        // @ts-ignore
+        // SAFE: Dynamic key set
         await chrome.storage.sync.set({ [type]: rules });
 
         this.showToast('Heuristic keyword added!', 'success');
         input.value = '';
         // The storage listener will automatically re-render the table
     }
+
+
 
     renderCustomHidingRules(): void {
         const rules = this.settings.customHidingRules || {};
@@ -489,43 +497,124 @@ export class RulesManager {
             return;
         }
 
-        tbody.innerHTML = domains.map(domain => `
-            <tr>
-                <td>${domain}</td>
-                <td>${rules[domain].length} rule(s)</td>
-                <td><button class="btn btn-danger btn-small" data-action="delete-hiding-domain" data-type="customHidingRules" data-index="${domain}">Delete All</button></td>
+        tbody.innerHTML = domains.map(domain => {
+            const domainRules = rules[domain];
+            const isExpanded = this.expandedDomains.has(domain);
+
+            // Main Domain Row
+            let html = `
+            <tr class="domain-row">
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button class="icon-toggle-btn ${isExpanded ? 'expanded' : ''}" data-action="toggle-domain-rules" data-domain="${domain}">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                        </button>
+                        <strong>${domain}</strong>
+                    </div>
+                </td>
+                <td>${domainRules.length} rule(s)</td>
+                <td style="text-align: right;">
+                    <button class="btn btn-danger btn-small" data-action="delete-hiding-domain" data-type="customHidingRules" data-index="${domain}">Delete All</button>
+                </td>
             </tr>
-        `).join('');
+            `;
+
+            // Expanded Details Row
+            if (isExpanded) {
+                const rulesListObj = domainRules.map((rule, idx) => `
+                    <div class="rule-item" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                        <code style="font-size: 11px; word-break: break-all; color: #a5f3fc;">${rule.value}</code>
+                        <button class="icon-btn-danger" title="Delete Rule" data-action="delete-single-hiding-rule" data-domain="${domain}" data-index="${idx}">
+                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" /></svg>
+                        </button>
+                    </div>
+                `).join('');
+
+                html += `
+                <tr class="details-row">
+                    <td colspan="3" style="padding: 0 0 0 34px; background: rgba(0,0,0,0.1);">
+                        <div class="rules-list-container" style="padding: 10px 0;">
+                            ${rulesListObj}
+                        </div>
+                    </td>
+                </tr>
+                `;
+            }
+
+            return html;
+        }).join('');
+    }
+
+    toggleDomainRules(domain: string): void {
+        if (this.expandedDomains.has(domain)) {
+            this.expandedDomains.delete(domain);
+        } else {
+            this.expandedDomains.add(domain);
+        }
+        this.renderCustomHidingRules();
+    }
+
+    async deleteSingleHidingRule(domain: string, index: number): Promise<void> {
+        if (!this.settings.customHidingRules || !this.settings.customHidingRules[domain]) return;
+
+        // Optimistic UI update avoidance or rely on render?
+        // Since we modify storage, we should wait for storage update or update local + storage.
+        // Updating local + storage avoids flickering if storage listener is slow.
+
+        const ruleValue = this.settings.customHidingRules[domain][index].value;
+
+        if (!confirm(`Delete this rule?\n\n${ruleValue}`)) return;
+
+        this.settings.customHidingRules[domain].splice(index, 1);
+
+        // If empty, delete the domain key entirely
+        if (this.settings.customHidingRules[domain].length === 0) {
+            delete this.settings.customHidingRules[domain];
+            this.expandedDomains.delete(domain);
+        }
+
+        await chrome.storage.sync.set({ customHidingRules: this.settings.customHidingRules });
+
+        // Notify content scripts to re-apply rules immediately
+        chrome.runtime.sendMessage({ type: 'REAPPLY_HIDING_RULES' });
+
+        this.showToast('Rule deleted.', 'success');
+        // render() is called by storage listener, but we can call it here for instant feedback if listener is slow?
+        // Listener handles it.
     }
 
     async toggleRule(type: keyof AppSettings, index: number, isEnabled: boolean): Promise<void> {
-        // @ts-ignore - Array access
-        if (!this.settings[type] || !this.settings[type][index]) return;
-        // @ts-ignore
-        this.settings[type][index].enabled = isEnabled;
-        // @ts-ignore
-        await chrome.storage.sync.set({ [type]: this.settings[type] });
+        // SAFE: We access settings via dynamic key, asserting it's an array-based setting
+        const list = this.settings[type];
+        if (!Array.isArray(list) || !list[index]) return;
+
+        // SAFE: We modify the item safely assuming standard structure {value, enabled}
+        (list[index] as any).enabled = isEnabled;
+
+        await chrome.storage.sync.set({ [type]: list });
         this.showToast('Rule setting saved!', 'success');
     }
 
     async deleteRule(type: keyof AppSettings, index: number): Promise<void> {
-        // @ts-ignore
-        if (!this.settings[type] || !this.settings[type][index]) return;
-        // @ts-ignore
-        this.settings[type].splice(index, 1);
-        // @ts-ignore
-        await chrome.storage.sync.set({ [type]: this.settings[type] });
+        // SAFE: Cast to array for splicing
+        const list = this.settings[type];
+        if (!Array.isArray(list) || !list[index]) return;
+
+        list.splice(index, 1);
+
+        await chrome.storage.sync.set({ [type]: list });
         this.showToast('Rule deleted!', 'success');
     }
 
     async deleteHidingDomain(type: keyof AppSettings, domain: string): Promise<void> {
-        // @ts-ignore
-        if (!this.settings[type] || !this.settings[type][domain]) return;
+        // SAFE: Specific cast for dictionary type
+        const dict = this.settings[type] as Record<string, any>;
+        if (!dict || !dict[domain]) return;
+
         if (confirm(`Are you sure you want to delete all hiding rules for ${domain}?`)) {
-            // @ts-ignore
-            delete this.settings[type][domain];
-            // @ts-ignore
-            await chrome.storage.sync.set({ [type]: this.settings[type] });
+            delete dict[domain];
+
+            await chrome.storage.sync.set({ [type]: dict });
             this.showToast(`Rules for ${domain} deleted!`, 'success');
         }
     }

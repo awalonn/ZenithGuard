@@ -75,7 +75,17 @@ node build_rules.js
 2. Turn on "Developer mode" in the top-right corner.
 3. Click "Load unpacked".
 4. Select the root ZenithGuard folder (the one containing manifest.json ).
-4. Final Configuration
+4. Deployment & Release
+This project uses GitHub Actions for automated releases.
+1.  **Bump Version**: Update `version` in `manifest.json`.
+2.  **Tag Release**:
+    ```bash
+    git tag v1.0.0
+    git push origin v1.0.0
+    ```
+3.  **Automatic Build**: The GitHub Action will build the extension, zip it, and create a Draft Release with the artifact.
+
+5. Final Configuration
 
 To enable all features, you must:
 1. Set Your API Key:

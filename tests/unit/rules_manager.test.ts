@@ -40,9 +40,9 @@ describe('RulesManager', () => {
         mockShowToast = jest.fn();
         const mockSettings: Partial<AppSettings> = {
             enabledStaticRulesets: [],
-            customHidingRules: [],
+            customHidingRules: {},
             heuristicKeywords: [],
-            whitelist: [],
+            disabledSites: [],
             // Add other required settings as empty logic handles them
         };
 

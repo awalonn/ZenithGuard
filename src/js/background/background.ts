@@ -18,10 +18,10 @@ initializeMessageHandler();
 
 chrome.runtime.onInstalled.addListener(async (details) => {
     await storageManager.initializeSettingsIfNeeded();
-    if (details.reason === 'install') chrome.tabs.create({ url: 'pages/welcome.html' });
+    if (details.reason === 'install') chrome.tabs.create({ url: 'src/pages/welcome.html' });
     else if (details.reason === 'update') {
         const currentVersion = chrome.runtime.getManifest().version;
-        if (details.previousVersion !== currentVersion) chrome.tabs.create({ url: `pages/whats_new.html?v=${currentVersion}` });
+        if (details.previousVersion !== currentVersion) chrome.tabs.create({ url: `src/pages/whats_new.html?v=${currentVersion}` });
     }
     createContextMenus();
     await storageManager.migrateOldRules();
@@ -58,9 +58,10 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
         console.log("ZenithGuard: Rule-related setting changed. Re-applying all rules.");
         await ruleEngine.applyAllRules();
         const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"], status: 'complete' });
-        const messagePromises = tabs.map(tab =>
-            chrome.tabs.sendMessage(tab.id, { type: 'REAPPLY_HIDING_RULES' }).catch(e => { })
-        );
+        const messagePromises = tabs.map(tab => {
+            if (tab.id) return chrome.tabs.sendMessage(tab.id, { type: 'REAPPLY_HIDING_RULES' }).catch(e => { });
+            return Promise.resolve();
+        });
         await Promise.allSettled(messagePromises);
     }
 });
@@ -87,7 +88,7 @@ chrome.commands.onCommand.addListener(async (command) => {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
         const currentTabId = tabs[0]?.id;
         // If we have a current tab, pass its ID so the logger can filter for it
-        const url = currentTabId ? `pages/logger.html?tabId=${currentTabId}` : 'pages/logger.html';
+        const url = currentTabId ? `src/pages/logger.html?tabId=${currentTabId}` : 'src/pages/logger.html';
         chrome.tabs.create({ url });
     } else if (command === 'toggle-zapper') {
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });

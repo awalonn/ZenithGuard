@@ -11,7 +11,9 @@ export interface FilterList {
     url: string;
     enabled: boolean;
     lastUpdated?: number;
+
     ruleCount?: number;
+    status?: string;
 }
 
 export interface AppSettings {
@@ -37,6 +39,8 @@ export interface AppSettings {
     defaultBlocklist: string[]; // URLs or patterns
     networkBlocklist: string[];
     heuristicKeywords: string[];
+    heuristicAllowlist?: { value: string; enabled: boolean }[];
+    enabledStaticRulesets: string[];
 
     // Meta
     geminiApiKey?: string;

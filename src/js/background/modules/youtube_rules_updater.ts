@@ -14,7 +14,7 @@ const CACHE_DURATION_MS = 4 * 60 * 60 * 1000; // 4 hours
  */
 export async function updateYouTubeRules(force = false) {
     // Get the configured URL from settings
-    const { youtubeRulesUrl } = await chrome.storage.sync.get('youtubeRulesUrl');
+    const { youtubeRulesUrl } = await chrome.storage.sync.get('youtubeRulesUrl') as { youtubeRulesUrl?: string };
 
     if (!youtubeRulesUrl || youtubeRulesUrl.includes('YOUR_USERNAME')) {
         console.warn("ZenithGuard: YouTube rules URL is not configured. Using local fallback. Ad-blocking may be outdated.");
@@ -23,7 +23,7 @@ export async function updateYouTubeRules(force = false) {
     }
 
     if (!force) {
-        const cached = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY);
+        const cached = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY) as { [key: string]: any };
         if (cached[YOUTUBE_RULES_CACHE_KEY] && (Date.now() - cached[YOUTUBE_RULES_CACHE_KEY].lastUpdated < CACHE_DURATION_MS)) {
             return; // Cache is fresh
         }
@@ -65,8 +65,8 @@ export async function updateYouTubeRules(force = false) {
  */
 async function updateFromLocal(force = false) {
     if (!force) {
-        const cached = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY);
-        if (cached[YOUTUBE_RULES_CACHE_KEY] && (Date.Now() - cached[YOUTUBE_RULES_CACHE_KEY].lastUpdated < CACHE_DURATION_MS)) {
+        const cached = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY) as { [key: string]: any };
+        if (cached[YOUTUBE_RULES_CACHE_KEY] && (Date.now() - cached[YOUTUBE_RULES_CACHE_KEY].lastUpdated < CACHE_DURATION_MS)) {
             return; // Cache is fresh
         }
     }
@@ -96,6 +96,6 @@ async function updateFromLocal(force = false) {
  * @returns {Promise<object|null>} The cached rules object or null.
  */
 export async function getLatestYouTubeRules() {
-    const cache = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY);
+    const cache = await chrome.storage.local.get(YOUTUBE_RULES_CACHE_KEY) as { [key: string]: any };
     return cache[YOUTUBE_RULES_CACHE_KEY]?.rules || null;
 }

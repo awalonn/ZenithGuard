@@ -4,6 +4,10 @@
   "description": "ZenithGuard - Advanced AI Ad & Privacy Blocker",
   "main": "js/background/background.js",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/awalonn/ZenithGuard.git"
+  },
   "scripts": {
     "build": "vite build && vite build -c vite.content.config.js",
     "watch": "vite build --watch",

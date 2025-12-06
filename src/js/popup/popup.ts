@@ -538,12 +538,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         button.innerHTML = '<div class="briefing-spinner"></div> Summarizing...';
 
         const policyUrl = button.dataset.url;
-        await chrome.runtime.sendMessage({
-            type: 'SUMMARIZE_PRIVACY_POLICY',
-            data: { domain: currentHostname, policyUrl }
-        });
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'SUMMARIZE_PRIVACY_POLICY',
+                data: { domain: currentHostname, policyUrl }
+            });
 
-        setTimeout(loadAIBriefing, 500);
+            if (response && response.error) {
+                // If it's a specific quota error, show a toast, otherwise the UI will update from storage
+                if (response.error === 'QUOTA_EXCEEDED') {
+                    window.ZenithGuardToastUtils.showToast({ message: 'AI Quota Exceeded. Please try again later.', type: 'error' });
+                }
+            }
+        } catch (error) {
+            console.error("Analysis failed:", error);
+        }
+
+        // Reload UI immediately as storage is now updated
+        await loadAIBriefing();
     }
 
     async function handleAddRule() {

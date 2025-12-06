@@ -96,8 +96,11 @@ const actions = {
             const summary = await ai.handleSummarizePrivacyPolicy(policyUrl);
             if (summary.error) throw new Error(summary.error);
             await chrome.storage.local.set({ [key]: { summary, timestamp: Date.now() } });
+            return summary;
         } catch (error) {
-            await chrome.storage.local.set({ [key]: { error: (error as Error).message, timestamp: Date.now() } });
+            const errorMsg = (error as Error).message;
+            await chrome.storage.local.set({ [key]: { error: errorMsg, timestamp: Date.now() } });
+            return { error: errorMsg };
         }
     },
     'SELF_HEAL_RULE': (request: any, sender: chrome.runtime.MessageSender) => {

@@ -147,7 +147,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderQuotaError();
                     return;
                 }
-                throw new Error(response.error);
+                if (response.error === 'AI_TIMEOUT') {
+                    renderError("Analysis timed out. The page might be too complex or the connection is slow.");
+                    return;
+                }
+                throw new Error(response.error as string);
             }
 
             currentReportData = response.result as ReportData;

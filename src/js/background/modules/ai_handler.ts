@@ -212,12 +212,17 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
                 }
             };
 
-            const response = await ai.models.generateContent({
+            const timeoutPromise = new Promise<any>((_, reject) =>
+                setTimeout(() => reject(new Error("AI_TIMEOUT")), 40000)
+            );
+
+            const analysisPromise = ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }, { text: `Network Log:\n${filteredLog.join('\n')}` }] },
                 config: { responseMimeType: 'application/json', responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
+            const response = await Promise.race([analysisPromise, timeoutPromise]);
             return JSON.parse(response.text);
         });
 

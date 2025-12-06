@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>ZenithGuard - Network Log</title>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="../css/logger.css">
     <link rel="stylesheet" href="../css/toast.css">
     <style>
-        .log-table .time { width: 100px; color: #9ca3af; }
+        .log-table .time {
+            width: 100px;
+            color: #9ca3af;
+        }
     </style>
 </head>
+
 <body>
 
     <div class="container">
@@ -49,7 +54,8 @@
 
     <div id="zg-toast-container"></div>
     <!-- REFACTORED: Load toast.js as a plain script *before* the module that uses it -->
-    <script src="../js/utils/toast.js"></script>
+    <script src="../js/utils/toast.ts"></script>
     <script type="module" src="../js/logger/logger.js"></script>
 </body>
+
 </html>

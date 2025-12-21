@@ -36,8 +36,8 @@ export interface AppSettings {
 
     // Lists
     filterLists: FilterList[];
-    defaultBlocklist: string[]; // URLs or patterns
-    networkBlocklist: string[];
+    defaultBlocklist: any[]; // Was string[], now supports { value, enabled }
+    networkBlocklist: any[]; // Was string[], now supports { value, enabled }
     heuristicKeywords: string[];
     heuristicAllowlist?: { value: string; enabled: boolean }[];
     enabledStaticRulesets: string[];
@@ -46,8 +46,34 @@ export interface AppSettings {
     geminiApiKey?: string;
     installDate?: number;
     youtubeRulesUrl?: string; // Advanced: Custom URL for YT rules
+
     trackerListUrl?: string; // Advanced: Custom URL for tracker list
+
+    // Focus Mode
+    isFocusModeEnabled?: boolean;
+    focusModeUntil?: number;
+    focusBlocklist?: string[];
+
+    // Wall Fixes
+    persistentWallFixes?: Record<string, { overlaySelector: string; scrollSelector?: string; enabled: boolean }>;
 }
 
 // Broad type for Chrome's storage object if partial
 export type PartialSettings = Partial<AppSettings>;
+
+// --- Privacy Insights ---
+export type PrivacyGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+export interface TrackerDefinition {
+    id: string;
+    name: string;
+    category: 'Advertising' | 'Analytics' | 'Fingerprinting' | 'Social' | 'Cryptomining' | 'Unknown';
+    owner?: string;
+}
+
+export interface PrivacyStats {
+    grade: PrivacyGrade;
+    score: number; // 0-100
+    trackersBlocked: number;
+    trackersFound: TrackerDefinition[]; // What we found on the page
+}

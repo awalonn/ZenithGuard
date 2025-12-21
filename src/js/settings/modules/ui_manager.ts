@@ -1,5 +1,6 @@
 // src/js/settings/modules/ui_manager.ts
 import { AppSettings } from '../../types.js';
+import { showToast } from '../../utils/toast.js';
 
 export class UIManager {
 
@@ -67,13 +68,6 @@ export class UIManager {
     }
 
     showToast(message: string, type: 'success' | 'error' | 'info' = 'success'): void {
-        // This method maintains a simple API for other settings modules
-        // while calling the more feature-rich global toast handler.
-
-        if (window.ZenithGuardToastUtils && window.ZenithGuardToastUtils.showToast) {
-            window.ZenithGuardToastUtils.showToast({ message, type });
-        } else {
-            console.error("ZenithGuard: Toast utility not loaded. Check settings.html");
-        }
+        showToast({ message, type });
     }
 }

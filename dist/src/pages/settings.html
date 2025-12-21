@@ -3,14 +3,15 @@
 
 <head>
     <title>ZenithGuard Settings</title>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8">
   <script type="module" crossorigin src="/js/settings.js"></script>
   <link rel="modulepreload" crossorigin href="/js/modulepreload-polyfill-B5Qt9EMX.js">
-  <link rel="modulepreload" crossorigin href="/js/subscription_presets-DdBWjbH6.js">
-  <link rel="stylesheet" crossorigin href="/assets/settings-BvL8Pg3Q.css">
-  <link rel="stylesheet" crossorigin href="/assets/theme-BBPZWUgU.css">
-  <link rel="stylesheet" crossorigin href="/assets/shared-CDoNpH1i.css">
+  <link rel="modulepreload" crossorigin href="/js/toast-x-r4Mfnf.js">
+  <link rel="modulepreload" crossorigin href="/js/subscription_presets-Cex1emRe.js">
   <link rel="stylesheet" crossorigin href="/assets/toast-DKIwOoDV.css">
+  <link rel="stylesheet" crossorigin href="/assets/settings-thdRVBFc.css">
+  <link rel="stylesheet" crossorigin href="/assets/theme-C-2EtBes.css">
+  <link rel="stylesheet" crossorigin href="/assets/shared-CDoNpH1i.css">
 </head>
 
 <body>
@@ -121,10 +122,7 @@
                     <div class="stat-card full-width">
                         <h3>Activity (Last 7 Days)</h3>
                         <div class="chart-container" style="height: 200px; width: 100%; position: relative;">
-                            <svg id="activity-chart" width="100%" height="100%" viewBox="0 0 800 200"
-                                preserveAspectRatio="none">
-                                <!-- Chart will be rendered here -->
-                            </svg>
+                            <canvas id="activity-chart"></canvas>
                         </div>
                     </div>
                 </div>
@@ -290,6 +288,29 @@
                             </thead>
                             <tbody id="network-blocklist-tbody"></tbody>
                         </table>
+                        <div class="add-rule-form">
+                            <input type="text" id="add-network-domain-input" placeholder="e.g. tracking-site.com">
+                            <button class="btn btn-primary" data-action="add-network-rule">Add Site</button>
+                        </div>
+                    </div>
+
+                    <div class="rules-table">
+                        <h3>Focus Mode Blocklist <span class="rule-count" id="focus-blocklist-count">(0)</span></h3>
+                        <p class="setting-description" style="margin-bottom: 10px;">Domains blocked during Focus Mode.
+                            If empty, a default list depends on strictness.</p>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="focus-blocklist-tbody"></tbody>
+                        </table>
+                        <div class="add-rule-form">
+                            <input type="text" id="add-focus-domain-input" placeholder="e.g. facebook.com">
+                            <button class="btn btn-primary" data-action="add-focus-domain">Add Site</button>
+                        </div>
                     </div>
 
                     <div class="rules-table">
@@ -327,29 +348,104 @@
                     </div>
                 </div>
             </section>
-
             <!-- Subscriptions Section -->
             <section id="subscriptions" class="content-section">
                 <div class="content-header">
-                    <h1>Subscriptions</h1>
-                    <button class="btn btn-primary" id="update-custom-lists-btn" data-action="update-all-lists">Update
-                        All Lists</button>
+                    <h1>Filter Lists</h1>
                 </div>
 
-                <h3>Bundled Filter Lists</h3>
-                <p class="setting-description" style="margin-bottom: 1rem;">
-                    These are large, powerful filter lists bundled directly with the extension for maximum performance.
-                    Network rules update when the extension updates.
-                </p>
-                <div id="bundled-subscriptions-list" class="recommended-subscriptions-container">
-                    <!-- Cards will be rendered here by rules_manager.js -->
+                <div class="info-box" style="margin-bottom: 2rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z" />
+                    </svg>
+                    <p><strong>ZenithGuard uses a hybrid filter system</strong> for maximum performance and flexibility.
+                        Network
+                        blocking happens at the browser level (instant), while cosmetic filtering hides page elements
+                        (flexible
+                        updates).</p>
                 </div>
 
-                <h3>My Custom Subscriptions</h3>
-                <p class="setting-description" style="margin-bottom: 1rem;">
-                    Add other filter lists by URL. These lists are dynamic and will be updated every 24 hours. (Note:
-                    Large lists like EasyList should be used from the bundled section above).
+                <!-- NETWORK BLOCKING SECTION -->
+                <div class="filter-section-container">
+                    <div class="filter-section-header">
+                        <h2>🛡️ Network Blocking (Built-in)</h2>
+                        <span class="badge badge-static">Static Rulesets</span>
+                    </div>
+                    <p class="setting-description" style="margin-bottom: 1.5rem;">
+                        These filter lists use <strong>Chrome Declarative Net Request (DNR)</strong> to block ads and
+                        trackers at
+                        the network level before they even load. These rules are <strong>bundled with the
+                            extension</strong> and
+                        update when you install extension updates from the Chrome Web Store. Ultra-fast with zero
+                        performance
+                        overhead.
+                    </p>
+                    <div id="bundled-subscriptions-list" class="recommended-subscriptions-container">
+                        <!-- Cards will be rendered here by rules_manager.js -->
+                    </div>
+                </div>
+
+                <!-- COSMETIC FILTERS SECTION -->
+                <div class="filter-section-container" style="margin-top: 3rem;">
+                    <div class="filter-section-header">
+                        <h2>🎨 Cosmetic Filters (Live Updates)</h2>
+                        <span class="badge badge-dynamic">Dynamic Rules</span>
+                    </div>
+                    <p class="setting-description" style="margin-bottom: 1.5rem;">
+                        These rules hide ad elements on web pages using <strong>CSS selectors</strong>. They are fetched
+                        from the
+                        same filter lists but stored locally and can be <strong>updated anytime</strong> by clicking the
+                        button
+                        below. Perfect for keeping up with fast-changing ad techniques without reinstalling the
+                        extension.
+                    </p>
+
+                    <button class="btn btn-primary" id="update-custom-lists-btn" data-action="update-all-lists"
+                        style="margin-bottom: 2rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                            style="width: 16px; height: 16px; margin-right: 8px;">
+                            <path
+                                d="M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z" />
+                        </svg>
+                        Update Cosmetic Filters Now
+                    </button>
+
+                    <!-- Display cosmetic rule stats from bundled lists -->
+                    <div class="cosmetic-stats-grid">
+                        <div class="stat-card-mini">
+                            <h4>EasyList Cosmetic</h4>
+                            <p id="easylist-cosmetic-count">Loading...</p>
+                        </div>
+                        <div class="stat-card-mini">
+                            <h4>EasyPrivacy Cosmetic</h4>
+                            <p id="easyprivacy-cosmetic-count">Loading...</p>
+                        </div>
+                        <div class="stat-card-mini">
+                            <h4>Annoyances Cosmetic</h4>
+                            <p id="annoyances-cosmetic-count">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CUSTOM SUBSCRIPTIONS -->
+                <h3 style="margin-top: 3rem;">My Custom Subscriptions</h3>
+                <p class="setting-description" style="margin-bottom: 0.5rem;">
+                    Add other filter lists by URL. These lists are dynamic and will be updated every 24 hours.
                 </p>
+                <div class="info-box"
+                    style="background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); margin-bottom: 1rem; padding: 1rem;">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                        style="color: #f59e0b;">
+                        <path
+                            d="M13,13H11V7H13M13,17H11V15H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z" />
+                    </svg>
+                    <p style="color: #fcd34d; font-size: 0.9rem;">
+                        <strong>Note:</strong> Custom subscriptions only support <strong>cosmetic filters</strong>
+                        (element hiding).
+                        For network blocking, use the bundled lists above.
+                    </p>
+                </div>
                 <div class="add-subscription-form">
                     <input type="text" id="add-subscription-input" placeholder="https://example.com/filterlist.txt">
                     <button class="btn btn-primary" data-action="add-subscription">Subscribe</button>
@@ -370,7 +466,7 @@
                     </table>
                 </div>
 
-                <!-- REFACTORED: Renamed and added container -->
+                <!-- Dynamic Lists Status -->
                 <h3 style="margin-top: 2rem;">Dynamic Lists Status</h3>
                 <p class="setting-description" style="margin-bottom: 1rem;">
                     These lists automatically fetch the latest rules from remote sources to protect against
@@ -409,8 +505,7 @@
         </main>
     </div>
     <div id="zg-toast-container"></div>
-    <!-- REFACTORED: Load toast.js as a plain script *before* the module that uses it -->
-    <script src="../js/utils/toast.ts"></script>
+    <!-- REFACTORED: Toast now imported by module -->
 </body>
 
 </html>

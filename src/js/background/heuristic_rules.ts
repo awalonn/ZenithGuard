@@ -22,5 +22,18 @@ export const HEURISTIC_KEYWORDS = [
   '/collect?',
   'analytics.js',
   'metrics.',
-  'track.gif'
+  'track.gif',
+
+  // Advanced "Pro" Keywords (Telemetry & Fingerprinting)
+  'telemetry',
+  'fingerprint',
+  'user-identification',
+
+  // Aggressive Ad Tech
+  'popunder',
+  'adloader',
+  'prebid',
+  'doubleclick',
+  'affiliate',
+  'offer-wall'
 ];

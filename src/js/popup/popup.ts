@@ -1,5 +1,6 @@
 // popup.ts
 import { AppSettings, HidingRule } from '../types.js';
+import { showToast } from '../utils/toast.js';
 
 interface LocalStorageData {
 
@@ -28,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const openSettingsBtn = document.getElementById('open-settings-btn') as HTMLElement;
     const openInspectorBtn = document.getElementById('open-inspector-btn') as HTMLElement;
-    const isolationModeBtn = document.getElementById('isolation-mode-btn') as HTMLElement;
+    const focusModeBtn = document.getElementById('focus-mode-btn') as HTMLElement;
     const forgetfulBrowsingBtn = document.getElementById('forgetful-browsing-btn') as HTMLElement;
     const pauseBtn = document.getElementById('pause-protection-btn') as HTMLElement;
     const zapperModeBtn = document.getElementById('zapper-mode-btn') as HTMLElement;
@@ -96,8 +97,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadActivityLog(),
             loadCustomRules(),
             loadCookies(),
-            loadIsolationModeState(),
-            loadForgetfulBrowsingState()
+            loadFocusModeState(),
+            loadForgetfulBrowsingState(),
+            loadIsolationModeState()
         ]);
 
         attachEventListeners();
@@ -131,78 +133,49 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadAIBriefing() {
-        briefingContentEl.innerHTML = '<div class="briefing-loading">Checking for insights...</div>';
+        // REFACTORED: Now loads "Privacy Score" from PrivacyManager
+        briefingContentEl.innerHTML = '<div class="briefing-loading">Analyzing privacy score...</div>';
 
-        const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey');
-        if (!geminiApiKey) {
-            privacyGradeBadge.style.display = 'none';
-            briefingContentEl.innerHTML = `
-                <div class="briefing-cta-missing-key">
-                    <span>AI features are disabled.</span>
-                    <button id="go-to-settings-btn" class="briefing-cta-btn">Add API Key</button>
-                </div>
-            `;
-            const btn = document.getElementById('go-to-settings-btn');
-            if (btn) btn.addEventListener('click', () => {
-                chrome.runtime.openOptionsPage();
-            });
-            return;
-        }
+        try {
+            const stats = await chrome.runtime.sendMessage({ type: 'GET_PRIVACY_STATS', tabId: currentTab!.id });
 
-        const summaryCacheKey = `privacy-summary-${currentHostname}`;
-        const policyUrlKey = `privacy-policy-url-${currentHostname}`;
-        const { auditHistory = [], ...storageData } = await chrome.storage.local.get(['auditHistory', summaryCacheKey, policyUrlKey]) as LocalStorageData;
-
-        const lastScan = auditHistory.find(item => item.domain === currentHostname);
-        const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=${currentTab!.id}&url=${encodeURIComponent(currentTab!.url!)}`);
-
-        privacyGradeBadge.href = analyzerUrl;
-        if (lastScan) {
-            privacyGradeBadge.textContent = lastScan.grade;
-            privacyGradeBadge.className = `grade-badge grade-${lastScan.grade.toLowerCase()}`;
-        } else {
-            privacyGradeBadge.textContent = 'Scan';
-            privacyGradeBadge.className = 'grade-badge grade-none';
-        }
-
-        const summaryData = storageData[summaryCacheKey];
-        const policyUrl = storageData[policyUrlKey];
-
-        if (summaryData) {
-            if (summaryData.error) {
-                const errorMessage = summaryData.error.includes('QUOTA')
-                    ? "AI analysis quota exceeded."
-                    : "Failed to analyze privacy policy.";
-                briefingContentEl.innerHTML = `<div class="briefing-error">${escapeHtml(errorMessage)}</div>`;
+            if (stats) {
+                renderPrivacyScore(stats);
             } else {
-                renderBriefing(summaryData.summary);
+                briefingContentEl.innerHTML = '<div class="briefing-error">No data available.</div>';
             }
-        } else if (policyUrl) {
-            briefingContentEl.innerHTML = `
-                <div class="briefing-cta">
-                    <span>Privacy Policy found.</span>
-                    <button class="briefing-summarize-btn" data-url="${escapeHtml(policyUrl)}">Summarize with AI</button>
-                </div>
-            `;
-        } else {
-            briefingContentEl.innerHTML = '<div class="briefing-loading">No AI briefing available for this site yet.</div>';
+        } catch (e) {
+            console.error("Failed to load privacy stats", e);
+            briefingContentEl.innerHTML = '<div class="briefing-error">Analysis failed.</div>';
         }
     }
 
-    function renderBriefing(summaryData: { summary: string, dataCollected?: string[], sharedWith?: string[] }) {
-        if (!summaryData || !summaryData.summary) {
-            briefingContentEl.innerHTML = '<div class="briefing-error">Could not summarize privacy policy.</div>';
-            return;
+    function renderPrivacyScore(stats: any) {
+        const { grade, score, trackersBlocked, trackersFound } = stats;
+
+        // Update Badge
+        if (privacyGradeBadge) {
+            privacyGradeBadge.textContent = grade;
+            privacyGradeBadge.className = `grade-badge grade-${grade.toLowerCase()}`;
         }
 
-        const tagsHtml = [...(summaryData.dataCollected || []), ...(summaryData.sharedWith || [])]
-            .map(tag => `<span class="briefing-tag">${escapeHtml(tag)}</span>`).join('');
-
+        // Update Briefing Content with Score UI
+        const colorClass = score > 80 ? 'text-success' : (score > 50 ? 'text-warning' : 'text-danger');
         briefingContentEl.innerHTML = `
-            <p class="briefing-summary">${escapeHtml(summaryData.summary)}</p>
-            <div class="briefing-tags">${tagsHtml}</div>
+            <div class="privacy-score-container">
+                <div class="score-circle ${grade.toLowerCase()}">
+                    <span class="score-value">${score}</span>
+                    <span class="score-label">Score</span>
+                </div>
+                <div class="score-details">
+                    <p class="score-summary ${colorClass}">
+                        This site is <strong>${grade === 'A' ? 'Safe' : 'Tracking You'}</strong>.
+                    </p>
+                    <p class="score-sub">Blocked ${trackersBlocked} potential threats.</p>
+                </div>
+            </div>
         `;
-    }
+    } // End renderPrivacyScore
 
     async function loadPrivacyInsights() {
         // UPDATED: Target the list inside the Insights tab
@@ -327,11 +300,43 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    async function loadIsolationModeState() {
-        const { isolationModeSites = [] } = await chrome.storage.sync.get('isolationModeSites') as AppSettings;
-        // @ts-ignore - Assuming array of objects although strict type implies string[]
-        const isActive = isolationModeSites.some((s: any) => s.enabled && s.value === currentHostname);
-        if (isolationModeBtn) isolationModeBtn.classList.toggle('active', isActive);
+    async function loadFocusModeState() {
+        const settings = await chrome.storage.sync.get(['isFocusModeEnabled', 'focusModeUntil']) as AppSettings;
+        const { isFocusModeEnabled, focusModeUntil } = settings;
+
+        const updateUI = () => {
+            if (isFocusModeEnabled && focusModeUntil && focusModeUntil > Date.now()) {
+                focusModeBtn.classList.add('active'); // Apply to parent button
+                const mins = Math.ceil((focusModeUntil - Date.now()) / 60000);
+                focusModeBtn.querySelector('span')!.textContent = `Focusing (${mins}m)`;
+                // Removed inline styles in favor of CSS class
+                focusModeBtn.style.border = '';
+                focusModeBtn.style.background = '';
+            } else {
+                focusModeBtn.classList.remove('active');
+                focusModeBtn.querySelector('span')!.textContent = 'Focus Mode';
+                focusModeBtn.style.border = '';
+                focusModeBtn.style.background = '';
+            }
+        };
+
+        updateUI();
+        if ((window as any).focusInterval) clearInterval((window as any).focusInterval);
+        (window as any).focusInterval = setInterval(updateUI, 60000);
+
+        focusModeBtn.onclick = async () => {
+            const current = await chrome.storage.sync.get('isFocusModeEnabled') as AppSettings;
+            if (current.isFocusModeEnabled) {
+                await chrome.storage.sync.set({ isFocusModeEnabled: false, focusModeUntil: 0 });
+                window.ZenithGuardToastUtils.showToast({ message: 'Focus Mode Stopped', type: 'info' });
+            } else {
+                const duration = 25;
+                const endTime = Date.now() + (duration * 60 * 1000);
+                await chrome.storage.sync.set({ isFocusModeEnabled: true, focusModeUntil: endTime });
+                window.ZenithGuardToastUtils.showToast({ message: 'Focus Mode Started (25m)', type: 'success' });
+            }
+            setTimeout(() => loadFocusModeState(), 100);
+        };
     }
 
     async function loadForgetfulBrowsingState() {
@@ -383,7 +388,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('fix-cookies-btn')?.addEventListener('click', async () => {
             const tab = await getCurrentTab();
             if (tab && tab.id) {
-                window.ZenithGuardToastUtils.showToast({ message: 'AI is looking for cookie banners...', type: 'loading' });
+                showToast({ message: 'AI is looking for cookie banners...', type: 'loading' });
                 chrome.runtime.sendMessage({ type: 'HANDLE_COOKIE_CONSENT_ACTION', data: { tabId: tab.id } });
             }
         });
@@ -397,7 +402,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        isolationModeBtn?.addEventListener('click', handleIsolationToggle);
+
         forgetfulBrowsingBtn?.addEventListener('click', handleForgetfulToggle);
         pauseBtn?.addEventListener('click', handlePause);
         defeatWallBtn?.addEventListener('click', handleDefeatWall);
@@ -416,6 +421,45 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // --- Event Handlers ---
 
+
+    async function loadIsolationModeState() {
+        const isolationBtn = document.getElementById('isolation-mode-btn') as HTMLElement;
+        if (!isolationBtn) return;
+
+        const { isolationModeSites = [] } = await chrome.storage.sync.get('isolationModeSites') as AppSettings;
+        // @ts-ignore
+        const isActive = isolationModeSites.some((s: any) => s.enabled && s.value === currentHostname);
+
+        isolationBtn.classList.toggle('active', isActive);
+
+        isolationBtn.onclick = async () => {
+            let { isolationModeSites = [] } = await chrome.storage.sync.get('isolationModeSites') as AppSettings;
+            // @ts-ignore
+            const existingIndex = isolationModeSites.findIndex((s: any) => s.value === currentHostname);
+
+            let isNowEnabled = false;
+            if (existingIndex >= 0) {
+                // @ts-ignore
+                isolationModeSites[existingIndex].enabled = !isolationModeSites[existingIndex].enabled;
+                // @ts-ignore
+                isNowEnabled = isolationModeSites[existingIndex].enabled;
+            } else {
+                // @ts-ignore
+                isolationModeSites.push({ value: currentHostname, enabled: true });
+                isNowEnabled = true;
+            }
+
+            await chrome.storage.sync.set({ isolationModeSites });
+            window.ZenithGuardToastUtils.showToast({ message: `Isolation Mode ${isNowEnabled ? 'enabled' : 'disabled'}. Reloading...` });
+
+            // Reload to apply rules
+            if (currentTab && currentTab.id) {
+                chrome.tabs.reload(currentTab.id);
+            }
+            loadIsolationModeState();
+        };
+    }
+
     async function handleGlobalPowerToggle() {
         isGloballyEnabled = !isGloballyEnabled;
 
@@ -428,6 +472,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         updatePowerButtonUI();
         updatePerSiteToggleUI();
+
 
         const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"] });
         for (const tab of tabs) {
@@ -468,26 +513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.close();
     }
 
-    async function handleIsolationToggle() {
-        let { isolationModeSites = [] } = await chrome.storage.sync.get('isolationModeSites') as AppSettings;
-        // @ts-ignore
-        const existingRule = isolationModeSites.find((r: any) => r.value === currentHostname);
 
-        let isNowEnabled;
-        if (existingRule) {
-            // @ts-ignore
-            existingRule.enabled = !existingRule.enabled;
-            // @ts-ignore
-            isNowEnabled = existingRule.enabled;
-        } else {
-            // @ts-ignore
-            isolationModeSites.push({ value: currentHostname, enabled: true });
-            isNowEnabled = true;
-        }
-        await chrome.storage.sync.set({ isolationModeSites });
-        loadIsolationModeState();
-        window.ZenithGuardToastUtils.showToast({ message: `Isolation Mode ${isNowEnabled ? 'enabled' : 'disabled'}. Reload page to apply.` });
-    }
 
     async function handleForgetfulToggle() {
         let { forgetfulSites = [] } = await chrome.storage.sync.get('forgetfulSites') as AppSettings;
@@ -506,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         await chrome.storage.sync.set({ forgetfulSites });
         loadForgetfulBrowsingState();
-        window.ZenithGuardToastUtils.showToast({ message: `Forgetful Browsing ${isNowEnabled ? 'enabled' : 'disabled'}.` });
+        showToast({ message: `Forgetful Browsing ${isNowEnabled ? 'enabled' : 'disabled'}.` });
     }
 
     async function handleRuleDelete(e: Event) {
@@ -547,7 +573,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response && response.error) {
                 // If it's a specific quota error, show a toast, otherwise the UI will update from storage
                 if (response.error === 'QUOTA_EXCEEDED') {
-                    window.ZenithGuardToastUtils.showToast({ message: 'AI Quota Exceeded. Please try again later.', type: 'error' });
+                    showToast({ message: 'AI Quota Exceeded. Please try again later.', type: 'error' });
                 }
             }
         } catch (error) {
@@ -563,7 +589,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const selector = input.value.trim();
 
         if (!selector) {
-            window.ZenithGuardToastUtils.showToast({ message: 'Selector cannot be empty.', type: 'error' });
+            showToast({ message: 'Selector cannot be empty.', type: 'error' });
             return;
         }
 
@@ -582,16 +608,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!customHidingRules[currentHostname].some(r => r.value === selector)) {
                 customHidingRules[currentHostname].push({ value: selector, enabled: true });
                 await chrome.storage.sync.set({ customHidingRules });
-                window.ZenithGuardToastUtils.showToast({ message: 'Hiding rule added!' });
+                showToast({ message: 'Hiding rule added!' });
             } else {
-                window.ZenithGuardToastUtils.showToast({ message: 'This hiding rule already exists.', type: 'error' });
+                showToast({ message: 'This hiding rule already exists.', type: 'error' });
             }
 
             input.value = '';
             await loadCustomRules();
         } catch (e) {
             console.error("Failed to save hiding rule.", e);
-            window.ZenithGuardToastUtils.showToast({ message: 'Failed to save rule.', type: 'error' });
+            showToast({ message: 'Failed to save rule.', type: 'error' });
         }
     }
 
@@ -610,10 +636,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(response.error);
             }
             if (response.selectors && response.selectors.overlaySelector) {
-                await chrome.tabs.sendMessage(currentTab!.id!, {
-                    type: 'EXECUTE_ADBLOCK_WALL_FIX',
-                    selectors: response.selectors
-                });
+                // The fix is now applied directly by the background script (v1.2.1)
+                // to ensure reliability if the popup is closed.
                 success = true;
             } else {
                 throw new Error("AI could not find a wall to defeat.");
@@ -621,13 +645,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error: any) {
             console.error("ZenithGuard: Adblock wall defeat failed.", error);
             if (error.message === 'QUOTA_EXCEEDED') {
-                window.ZenithGuardToastUtils.showToast({ message: 'AI is busy due to high demand. Please try again in a moment.', type: 'error' });
+                showToast({ message: 'AI is busy due to high demand. Please try again in a moment.', type: 'error' });
+            } else if (error.message === 'AI_TIMEOUT') {
+                showToast({ message: 'The AI took too long to respond. Please try again.', type: 'error' });
             } else {
-                window.ZenithGuardToastUtils.showToast({ message: error.message, type: 'error' });
+                showToast({ message: error.message, type: 'error' });
             }
         } finally {
             if (success) {
-                window.close();
+                defeatWallBtn.classList.remove('loading');
+                defeatWallBtn.classList.add('success');
+                const span = defeatWallBtn.querySelector('span');
+                if (span) span.textContent = 'Success!';
+
+                // Wait 1.5s before closing to let user see success
+                setTimeout(() => {
+                    window.close();
+                }, 1500);
             } else {
                 defeatWallBtn.classList.remove('loading');
                 defeatWallBtn.disabled = false;

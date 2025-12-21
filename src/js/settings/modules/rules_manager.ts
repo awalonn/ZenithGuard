@@ -29,15 +29,20 @@ export class RulesManager {
             const { action, type, index, url, rulesetId, domain } = button.dataset;
 
             if (action === 'delete-rule' && type) this.deleteRule(type as keyof AppSettings, Number(index));
-            if (action === 'delete-hiding-domain') this.deleteHidingDomain(type as keyof AppSettings, String(index)); // index here is domain string
+            if (action === 'delete-hiding-domain') this.deleteHidingDomain(type as keyof AppSettings, String(index));
             if (action === 'add-subscription') this.addSubscription();
             if (action === 'delete-subscription' && url) this.deleteSubscription(url);
             if (action === 'update-all-lists') this.updateAllLists(button);
             if (action === 'add-heuristic-keyword') this.addHeuristicKeyword();
+            if (action === 'add-focus-domain') this.addFocusDomain();
+            if (action === 'delete-focus-domain' && domain) this.deleteFocusDomain(domain);
 
             // NEW: Granular Zapper Control
             if (action === 'toggle-domain-rules' && domain) this.toggleDomainRules(domain);
             if (action === 'delete-single-hiding-rule' && domain && index) this.deleteSingleHidingRule(domain, Number(index));
+
+            // NEW: Network Blocklist Addition
+            if (action === 'add-network-rule') this.addNetworkRule();
         });
 
         document.body.addEventListener('change', (e: Event) => {
@@ -56,11 +61,13 @@ export class RulesManager {
     async render(): Promise<void> {
         this.renderDefaultBlocklist();
         this.renderNetworkBlocklist();
+        this.renderFocusBlocklist(); // NEW
         this.renderCustomHidingRules();
         this.renderHeuristicKeywords();
-        await this.renderBundledFilterLists(); // REFACTORED
-        this.renderCustomSubscriptions(); // MODIFIED
-        this.renderDynamicListStatuses(); // REFACTORED from renderMalwareListStatus
+        await this.renderBundledFilterLists();
+        await this.renderCosmeticRuleStats(); // NEW: Phase 3
+        this.renderCustomSubscriptions();
+        this.renderDynamicListStatuses();
     }
 
     // --- NEW: Real-time update on storage change ---
@@ -77,7 +84,7 @@ export class RulesManager {
 
         let needsRender = false;
         // Keyof check is complex here, keeping it simpler
-        const syncKeys = ['defaultBlocklist', 'networkBlocklist', 'customHidingRules', 'heuristicKeywords', 'filterLists'];
+        const syncKeys = ['defaultBlocklist', 'networkBlocklist', 'customHidingRules', 'heuristicKeywords', 'filterLists', 'focusBlocklist'];
         const localKeys = ['malware-list-cache', 'youtube-rules-cache', 'tracker-list-cache'];
 
         if (area === 'sync') {
@@ -91,8 +98,15 @@ export class RulesManager {
             }
         }
 
-        if (area === 'local' && localKeys.some(key => changes[key])) {
-            needsRender = true;
+        if (area === 'local') {
+            if (localKeys.some(key => changes[key])) {
+                needsRender = true;
+            }
+            // NEW: Watch for filter list updates (e.g. filterlist-https://...)
+            // to update the rule counts in the UI
+            if (Object.keys(changes).some(key => key.startsWith('filterlist-'))) {
+                needsRender = true;
+            }
         }
 
         if (needsRender) {
@@ -106,33 +120,69 @@ export class RulesManager {
         const container = document.getElementById('bundled-subscriptions-list');
         if (!container) return;
 
-        // Get the list of currently enabled static rulesets
-        // NEW: Get state from sync storage, not from API
+        // Get enabled state
         const { enabledStaticRulesets } = await chrome.storage.sync.get('enabledStaticRulesets') as { enabledStaticRulesets?: string[] };
 
-        // If undefined (first run), default to all enabled
+        // Get cached stats for dynamic/cosmetic updates
+        // We need to fetch all keys starting with 'filterlist-'... but chrome.storage.get doesn't support wildcards.
+        // So we iterate the presets and build the keys.
+        const keysToFetch = BUNDLED_LISTS_PRESETS.map(p => `filterlist-${p.sourceUrl}`);
+        const cacheData = await chrome.storage.local.get(keysToFetch) as Record<string, any>;
+
         const enabledIds = new Set(
             enabledStaticRulesets || BUNDLED_LISTS_PRESETS.map((p: any) => p.id)
         );
 
-        // Save the default state if it was undefined
         if (!enabledStaticRulesets) {
             await chrome.storage.sync.set({ enabledStaticRulesets: Array.from(enabledIds) });
         }
 
-
         container.innerHTML = BUNDLED_LISTS_PRESETS.map(preset => {
             const isEnabled = enabledIds.has(preset.id);
+            const cacheKey = `filterlist-${preset.sourceUrl}`;
+            const cachedInfo = cacheData[cacheKey];
+
+            let statusHtml = '';
+            let statsHtml = '';
+
+            if (cachedInfo) {
+                const lastUpdated = new Date(cachedInfo.lastUpdated).toLocaleString();
+                // Count cosmetic rules
+                const ruleCount = Object.values(cachedInfo.cosmeticRules || {}).reduce((acc: number, val: any) => acc + (val.length || 0), 0);
+
+                statusHtml = `
+                    <div class="status-indicator small">
+                        <div class="status-dot success"></div>
+                        <span>Hybrid Active</span>
+                    </div>`;
+
+                statsHtml = `
+                    <div class="list-stats">
+                        <span><small>Cosmetic Rules:</small> <strong>${ruleCount}</strong></span>
+                        <span><small>Updates:</small> <strong>${lastUpdated}</strong></span>
+                    </div>`;
+            } else if (isEnabled) {
+                statusHtml = `
+                    <div class="status-indicator small">
+                        <div class="status-dot warning"></div>
+                        <span>Static Only (Update Required)</span>
+                    </div>`;
+            }
+
             return `
                 <div class="subscription-card">
                     <div class="subscription-card-header">
-                        <h4>${preset.name}</h4>
+                        <div class="header-left">
+                            <h4>${preset.name}</h4>
+                            ${statusHtml}
+                        </div>
                         <label class="switch">
                             <input type="checkbox" data-action="toggle-static-ruleset" data-ruleset-id="${preset.id}" ${isEnabled ? 'checked' : ''}>
                             <span class="slider"></span>
                         </label>
                     </div>
                     <p>${preset.description}</p>
+                    ${statsHtml}
                 </div>
             `;
         }).join('');
@@ -275,12 +325,20 @@ export class RulesManager {
     }
 
     async updateAllLists(button: HTMLButtonElement): Promise<void> {
+        const originalText = button.textContent || 'Update Cosmetic Filters Now';
         button.disabled = true;
         button.textContent = 'Updating...';
-        // REFACTORED: This message now only applies to custom lists
-        await chrome.runtime.sendMessage({ type: 'FORCE_UPDATE_ALL_FILTER_LISTS' });
-        this.showToast('Updating all subscriptions and dynamic lists in the background.', 'success');
-        // The button will re-enable on the next render after storage updates
+
+        try {
+            await chrome.runtime.sendMessage({ type: 'FORCE_UPDATE_ALL_FILTER_LISTS' });
+            this.showToast('Cosmetic filters updated successfully.', 'success');
+        } catch (error) {
+            this.showToast('Failed to update filters.', 'error');
+            console.error(error);
+        } finally {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
     }
 
 
@@ -391,6 +449,32 @@ export class RulesManager {
     }
 
 
+    // --- NEW: Phase 3 - Cosmetic Rule Stats Display ---
+    async renderCosmeticRuleStats(): Promise<void> {
+        const keysToFetch = BUNDLED_LISTS_PRESETS.map(p => `filterlist-${p.sourceUrl}`);
+        const cacheData = await chrome.storage.local.get(keysToFetch) as Record<string, any>;
+
+        for (const preset of BUNDLED_LISTS_PRESETS) {
+            const cacheKey = `filterlist-${preset.sourceUrl}`;
+            const cachedInfo = cacheData[cacheKey];
+            const elementId = `${preset.id}-cosmetic-count`;
+            const element = document.getElementById(elementId);
+
+            if (element) {
+                if (cachedInfo && cachedInfo.cosmeticRules) {
+                    const count = Object.values(cachedInfo.cosmeticRules || {})
+                        .reduce((acc: number, val: any) => acc + (val.length || 0), 0);
+                    element.textContent = `${count.toLocaleString()} rules`;
+                    element.style.color = '#a5f3fc'; // Cyan for active
+                } else {
+                    element.textContent = 'Not cached (click Update)';
+                    element.style.color = 'rgba(255, 255, 255, 0.5)'; // Muted for inactive
+                }
+            }
+        }
+    }
+
+
     // --- Generic Rule Rendering and Management ---
     renderRuleTable(tbodyId: string, countId: string, rules: any[], type: string): void {
         const tbody = document.getElementById(tbodyId);
@@ -479,6 +563,111 @@ export class RulesManager {
         this.showToast('Heuristic keyword added!', 'success');
         input.value = '';
         // The storage listener will automatically re-render the table
+    }
+
+    // --- Focus Mode Blocklist ---
+
+    renderFocusBlocklist(): void {
+        const rules = this.settings.focusBlocklist || [];
+        const tbody = document.getElementById('focus-blocklist-tbody');
+        const countEl = document.getElementById('focus-blocklist-count');
+
+        if (countEl) countEl.textContent = `(${rules.length})`;
+        if (!tbody) return;
+
+        if (rules.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="2" class="no-rules-message">No custom sites. Using defaults.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = rules.map((domain: string) => `
+            <tr>
+                <td class="rule-value-cell" title="${domain}">${domain}</td>
+                <td>
+                    <button class="btn btn-danger btn-small" data-action="delete-focus-domain" data-domain="${domain}">Remove</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    async addNetworkRule(): Promise<void> {
+        const input = document.getElementById('add-network-domain-input') as HTMLInputElement;
+        if (!input) return;
+        const domain = input.value.trim();
+
+        if (!domain) {
+            this.showToast('Domain cannot be empty.', 'error');
+            return;
+        }
+
+        const list = this.settings.networkBlocklist || [];
+
+        // Check for duplicates
+        if (list.some(rule => rule.value === domain)) {
+            this.showToast('Domain is already in the blocklist.', 'error');
+            return;
+        }
+
+        list.push({ value: domain, enabled: true });
+
+        // Optimistic UI update handled by re-render on storage change, 
+        // but we save first.
+        await chrome.storage.sync.set({ networkBlocklist: list });
+        this.showToast('Domain added to network blocklist.', 'success');
+        input.value = '';
+    }
+
+    async addFocusDomain(): Promise<void> {
+        const input = document.getElementById('add-focus-domain-input') as HTMLInputElement;
+        if (!input) return;
+        const domain = input.value.trim();
+
+        if (!domain) {
+            this.showToast('Domain cannot be empty.', 'error');
+            return;
+        }
+
+        let list = this.settings.focusBlocklist || [];
+
+        // Initialize with default if it was empty, so we don't handle mixed states? 
+        // No, design decision: if user adds ONE custom, they manage the whole list. 
+        // Or we merge? 
+        // Current logic in manager: if list > 0 use list, else default.
+        // So if they add "foo.com", they LOSE "youtube.com" unless they add it back.
+        // Let's warn or populate defaults first.
+
+        if (list.length === 0) {
+            // Populate with defaults first so they don't accidentally unblock everything else
+            // We need to fetch DEFAULT_DISTRACTING_SITES? It's not imported.
+            // Hardcoded here for convenience or import it? 
+            // Let's just import it or duplicate it safely.
+            // For now, let's assume they want to build from scratch OR we just add it to the empty list.
+            // Better user experience: If list is empty, pre-fill with defaults + new one.
+            const DEFAULT_SITES = [
+                'facebook.com', 'twitter.com', 'x.com', 'instagram.com', 'tiktok.com',
+                'reddit.com', 'youtube.com', 'netflix.com', 'twitch.tv', 'discord.com'
+            ];
+            list = [...DEFAULT_SITES];
+        }
+
+        if (list.includes(domain)) {
+            this.showToast('Domain is already blocked.', 'error');
+            return;
+        }
+
+        list.push(domain);
+        await chrome.storage.sync.set({ focusBlocklist: list });
+        this.showToast('Focus domain added.', 'success');
+        input.value = '';
+    }
+
+    async deleteFocusDomain(domain: string): Promise<void> {
+        let list = this.settings.focusBlocklist || [];
+        if (list.length === 0) return;
+
+        list = list.filter((d: string) => d !== domain);
+        await chrome.storage.sync.set({ focusBlocklist: list });
+        this.showToast('Focus domain removed.', 'success');
     }
 
 

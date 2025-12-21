@@ -3,7 +3,11 @@
 import { GoogleGenAI, Type, GenerativeModel, SchemaType } from '../google-genai.js';
 
 // Configuration
-const MODEL_NAME = 'gemini-2.5-flash';
+const MODEL_NAME = 'gemini-3-flash-preview';
+
+// Throttling state
+let lastAiRequestTime = 0;
+const GLOBAL_RPM_LIMIT_MS = 15000; // 15 seconds between ANY AI requests (max 4 RPM)
 
 // Screenshot quality settings
 const SCREENSHOT_QUALITY_HIGH = 50;  // For detailed analysis
@@ -102,6 +106,54 @@ interface CookieConsentResult {
 }
 
 
+// --- Classes ---
+
+/**
+ * Manages screenshot captures to comply with Chrome's MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND quota.
+ * Chrome limits to ~2 calls per second. We'll enforce a safer margin.
+ */
+class CaptureLimiter {
+    private queue: Array<() => Promise<void>> = [];
+    private isProcessing = false;
+    private lastCaptureTime = 0;
+    // 600ms = ~1.6 calls/sec, safe buffer for the 2 calls/sec limit
+    private MIN_INTERVAL = 600;
+
+    async capture(windowId: number, options: any): Promise<string> {
+        return new Promise((resolve, reject) => {
+            this.queue.push(async () => {
+                try {
+                    const now = Date.now();
+                    const timeSinceLast = now - this.lastCaptureTime;
+                    if (timeSinceLast < this.MIN_INTERVAL) {
+                        await new Promise(r => setTimeout(r, this.MIN_INTERVAL - timeSinceLast));
+                    }
+                    this.lastCaptureTime = Date.now();
+                    // NOTE: captureVisibleTab can fail if the window is closed during the wait
+                    const result = await chrome.tabs.captureVisibleTab(windowId, options);
+                    resolve(result);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+            this.processQueue();
+        });
+    }
+
+    private async processQueue() {
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+        while (this.queue.length > 0) {
+            const task = this.queue.shift();
+            if (task) await task();
+        }
+        this.isProcessing = false;
+    }
+}
+
+const captureLimiter = new CaptureLimiter();
+
+
 // --- Functions ---
 
 /**
@@ -111,10 +163,22 @@ export function resetAiClient(): void {
     aiInstance = null;
 }
 
+async function checkRateLimit() {
+    const now = Date.now();
+    const timeSinceLast = now - lastAiRequestTime;
+    if (timeSinceLast < GLOBAL_RPM_LIMIT_MS) {
+        const waitTime = GLOBAL_RPM_LIMIT_MS - timeSinceLast;
+        console.log(`ZenithGuard: Global AI rate limit hit. Throttling for ${Math.round(waitTime / 1000)}s...`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    lastAiRequestTime = Date.now();
+}
+
 /**
  * Gets or creates the Gemini AI client instance.
  */
 async function getAiClient(): Promise<GoogleGenAI> {
+    await checkRateLimit(); // Throttle all AI calls globally
     if (aiInstance) return aiInstance;
 
     const { geminiApiKey } = await chrome.storage.sync.get('geminiApiKey') as { geminiApiKey?: string };
@@ -128,7 +192,7 @@ async function getAiClient(): Promise<GoogleGenAI> {
 /**
  * Reliably focuses a tab and performs an action.
  */
-async function performActionOnVisibleTab<T>(tabId: number, action: (tab: chrome.tabs.Tab) => Promise<T>): Promise<T> {
+async function performActionOnVisibleTab<T>(tabId: number, action: (tab: chrome.tabs.Tab) => Promise<T>, options: { requireFocus?: boolean } = { requireFocus: true }): Promise<T> {
     let tab: chrome.tabs.Tab;
     try {
         tab = await chrome.tabs.get(tabId);
@@ -151,25 +215,65 @@ async function performActionOnVisibleTab<T>(tabId: number, action: (tab: chrome.
         }
     }
 
-    try {
-        await chrome.windows.update(tab.windowId, { focused: true });
-        await chrome.tabs.update(tabId, { active: true });
-    } catch (error) {
-        if (String((error as Error).message).includes('Tabs cannot be edited right now')) {
-            throw new Error("Action aborted: User is interacting with the tab strip.");
+    if (options.requireFocus) {
+        try {
+            await chrome.windows.update(tab.windowId, { focused: true });
+            await chrome.tabs.update(tabId, { active: true });
+        } catch (error) {
+            if (String((error as Error).message).includes('Tabs cannot be edited right now')) {
+                throw new Error("Action aborted: User is interacting with the tab strip.");
+            }
+            // If tab was closed during update
+            if (String((error as Error).message).includes('No tab with id')) {
+                throw new Error("The target tab was closed before the action could complete.");
+            }
+            throw error;
         }
-        throw error;
+
+        await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    await new Promise(resolve => setTimeout(resolve, 500));
-
     try {
+        // Re-check if tab is still there after wait
         await chrome.tabs.get(tabId);
     } catch (e) {
         throw new Error("The target tab was closed before the action could complete.");
     }
 
     return await action(tab);
+}
+
+function safeJsonParse(text: string): any {
+    try {
+        if (!text) return {};
+        // Clean markdown code blocks if present
+        const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
+        return JSON.parse(cleaned);
+    } catch (e) {
+        console.warn("ZenithGuard: Failed to parse AI JSON response.", e);
+        return {};
+    }
+}
+
+/**
+ * Helper to handle common errors, specifically silencing 'Tab Closed' errors.
+ */
+function handleCommonErrors(error: unknown, context: string): { error: string } {
+    const msg = (error as Error).message;
+    // Quota error from Chrome API
+    if (msg === 'QUOTA_EXCEEDED') {
+        console.warn(`ZenithGuard ${context}: Quota exceeded.`);
+        return { error: 'QUOTA_EXCEEDED' };
+    }
+    // Handled closed tab errors gracefully
+    if (msg.includes("Target tab with ID") || msg.includes("target tab was closed") || msg.includes("No tab with id")) {
+        console.warn(`ZenithGuard ${context}: Tab was closed, action aborted.`);
+        // Return a specific error code or just a generic one. Using 'TAB_CLOSED' allows UI to ignore it.
+        return { error: 'TAB_CLOSED' };
+    }
+
+    console.error(`ZenithGuard ${context} Error:`, msg);
+    return { error: msg };
 }
 
 
@@ -182,7 +286,7 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
             const ai = await getAiClient();
             if (!ai.models) throw new Error("AI models not initialized");
 
-            const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
+            const screenshotDataUrl = await captureLimiter.capture(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_HIGH
             });
@@ -223,10 +327,11 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
             });
 
             const response = await Promise.race([analysisPromise, timeoutPromise]);
-            return JSON.parse(response.text);
+            return safeJsonParse(response.text);
         });
 
         const { auditHistory = [] } = await chrome.storage.local.get('auditHistory') as { auditHistory: any[] };
+
         const threatCount = (resultJson.networkThreats?.length || 0) + (resultJson.visualAnnoyances?.length || 0) + (resultJson.heuristicMatches?.length || 0) + (resultJson.darkPatterns?.length || 0);
         const grade = threatCount === 0 ? 'A' : (threatCount <= 5 ? 'B' : (threatCount <= 10 ? 'C' : 'D'));
 
@@ -247,12 +352,7 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
         return { result: resultJson };
 
     } catch (error) {
-        if ((error as Error).message === 'QUOTA_EXCEEDED') {
-            console.warn("ZenithGuard AI: Quota exceeded.");
-            return { error: 'QUOTA_EXCEEDED' };
-        }
-        console.error("ZenithGuard AI Analyzer Error:", (error as Error).message);
-        return { error: (error as Error).message };
+        return handleCommonErrors(error, "AI Analyzer");
     }
 }
 
@@ -263,7 +363,7 @@ export async function handleHideElementWithAI(description: string, context: Sele
             const ai = await getAiClient();
             if (!ai.models) throw new Error("AI models not initialized");
 
-            const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
+            const screenshotDataUrl = await captureLimiter.capture(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_LOW
             });
@@ -284,7 +384,7 @@ export async function handleHideElementWithAI(description: string, context: Sele
                 config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
-            const resultJson = JSON.parse(response.text);
+            const resultJson = safeJsonParse(response.text);
             if (!resultJson.selector || resultJson.selector.trim() === '') {
                 throw new Error("AI failed to generate a valid selector.");
             }
@@ -292,11 +392,7 @@ export async function handleHideElementWithAI(description: string, context: Sele
         });
         return resultData;
     } catch (error) {
-        if ((error as Error).message === 'QUOTA_EXCEEDED') {
-            return { error: 'QUOTA_EXCEEDED' };
-        }
-        console.error("ZenithGuard AI Hider Error:", (error as Error).message);
-        return { error: (error as Error).message };
+        return handleCommonErrors(error, "AI Hider");
     }
 }
 
@@ -324,7 +420,7 @@ export async function handleSummarizePrivacyPolicy(policyUrl: string): Promise<S
             config: { responseMimeType: 'application/json', responseSchema: responseSchema as unknown as SchemaType, temperature: 0.0 }
         });
 
-        return JSON.parse(aiResponse.text);
+        return safeJsonParse(aiResponse.text);
 
     } catch (error) {
         console.error("ZenithGuard: Failed to summarize privacy policy:", error);
@@ -338,7 +434,7 @@ export async function handleSelfHealRule(brokenSelector: string, tabId: number, 
             const ai = await getAiClient();
             if (!ai.models) throw new Error("AI models not initialized");
 
-            const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
+            const screenshotDataUrl = await captureLimiter.capture(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_LOW
             });
@@ -356,7 +452,7 @@ export async function handleSelfHealRule(brokenSelector: string, tabId: number, 
                 config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
-            const resultJson = JSON.parse(response.text);
+            const resultJson = safeJsonParse(response.text);
             if (!resultJson.newSelector || resultJson.newSelector.trim() === '' || resultJson.newSelector === brokenSelector) {
                 throw new Error("AI could not generate a valid new selector.");
             }
@@ -364,11 +460,7 @@ export async function handleSelfHealRule(brokenSelector: string, tabId: number, 
         });
         return resultData;
     } catch (error) {
-        if ((error as Error).message === 'QUOTA_EXCEEDED') {
-            return { error: 'QUOTA_EXCEEDED' };
-        }
-        console.error("ZenithGuard Self-Heal Error:", (error as Error).message);
-        return { error: (error as Error).message };
+        return handleCommonErrors(error, "Self-Heal");
     }
 }
 
@@ -384,22 +476,51 @@ export async function handleDefeatAdblockWall(tabId: number, onProgress?: (msg: 
             const ai = await getAiClient();
             if (!ai.models) throw new Error("AI models not initialized");
 
-            const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, { format: 'jpeg', quality: 30 });
+            const screenshotDataUrl = await captureLimiter.capture(activeTab.windowId, {
+                format: 'jpeg',
+                quality: 30
+            });
             const base64Screenshot = screenshotDataUrl.split(',')[1];
 
-            const prompt = `You are a web developer expert at removing anti-adblock walls. Analyze the provided webpage screenshot. Identify the primary overlay, modal, or banner that is blocking the user's view of the content. Also, check if the main page scrolling is disabled (e.g., via 'overflow: hidden' on the html or body). Your goal is to provide two CSS selectors to fix this.`;
+            const prompt = `You are a web developer expert at removing anti-adblock walls and intrusive banners. Analyze the provided webpage screenshot. 
+            Identify the blocking elements. Use a rigorous 3-step process:
+            1. find the MODAL (the popup box with text).
+            2. find the BACKDROP/OVERLAY (the dark/blurred layer covering the whole screen).
+            3. find the ROOT CONTAINER (if they share one).
+
+            If they are siblings, provide BOTH selectors separated by a comma.
+            
+            CRITICAL INSTRUCTIONS:
+            - You MUST return a selector that hits the BACKDROP. 
+            - Look for full-screen fixed elements with high z-index (e.g., .modal-backdrop, .overlay, #shadow-root).
+            - Prefer BROAD wildcard selectors for stability.
+            
+            Your goal is to provide:
+            - 'overlaySelector': A comma-separated string containing selectors for BOTH the modal and the background overlay.
+               Example: ".fc-dialog-container, .fc-ab-root, .MuiBackdrop-root"
+            - 'scrollSelector': The element that needs scroll restoration (usually 'body' or 'html').`;
 
             const responseSchema = { type: Type.OBJECT, properties: { reasoning: { type: Type.STRING }, overlaySelector: { type: Type.STRING }, scrollSelector: { type: Type.STRING } }, required: ["overlaySelector"] };
 
             await doProgress('Consulting with Gemini AI...');
+            console.log(`ZenithGuard: Sending prompt to AI for tab ${tabId}...`);
 
-            const response = await ai.models.generateContent({
+            const timeoutPromise = new Promise<any>((_, reject) =>
+                setTimeout(() => reject(new Error("AI_TIMEOUT")), 40000)
+            );
+
+            const aiPromise = ai.models.generateContent({
                 model: MODEL_NAME,
                 contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }] },
                 config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
-            const resultJson = JSON.parse(response.text);
+            const response = await Promise.race([aiPromise, timeoutPromise]);
+            console.log(`ZenithGuard: AI response received for tab ${tabId}.`);
+
+            const resultJson = safeJsonParse(response.text);
+            console.log(`ZenithGuard: AI result for tab ${tabId}:`, resultJson);
+
             if (!resultJson.overlaySelector || resultJson.overlaySelector.trim() === '') {
                 throw new Error("AI could not identify a blocking overlay.");
             }
@@ -407,21 +528,25 @@ export async function handleDefeatAdblockWall(tabId: number, onProgress?: (msg: 
         });
         return { selectors };
     } catch (error) {
-        if ((error as Error).message === 'QUOTA_EXCEEDED') {
-            return { error: 'QUOTA_EXCEEDED' };
-        }
-        console.error("ZenithGuard Adblock Wall Defeat Error:", (error as Error).message);
-        return { error: (error as Error).message };
+        return handleCommonErrors(error, "Adblock Wall Defeat");
     }
 }
 
 export async function handleCookieConsent(tabId: number): Promise<CookieConsentResult> {
     try {
+        // Safe Check: Don't steal focus. Only run if tab is active.
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab.active) {
+            // Silently ignore if tab is not active to avoid annoyance and errors
+            // console.log("ZenithGuard: Tab is not active, skipping Cookie Consent AI check.");
+            return { result: { selector: null, action: null } };
+        }
+
         const resultData = await performActionOnVisibleTab(tabId, async (activeTab) => {
             const ai = await getAiClient();
             if (!ai.models) throw new Error("AI models not initialized");
 
-            const screenshotDataUrl = await chrome.tabs.captureVisibleTab(activeTab.windowId, {
+            const screenshotDataUrl = await captureLimiter.capture(activeTab.windowId, {
                 format: 'jpeg',
                 quality: SCREENSHOT_QUALITY_LOW
             });
@@ -442,29 +567,22 @@ export async function handleCookieConsent(tabId: number): Promise<CookieConsentR
                 config: { responseMimeType: "application/json", responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
-            const resultJson = JSON.parse(response.text);
+            const resultJson = safeJsonParse(response.text);
 
             if (!resultJson || !resultJson.selector || resultJson.selector.trim() === '') {
                 return { result: { selector: null, action: null } };
             }
 
             return { result: { selector: resultJson.selector.trim(), action: resultJson.action } };
-        });
+        }, { requireFocus: false }); // New option to avoid forcing focus if we already checked it
+
         return resultData;
 
     } catch (error) {
         const err = error as Error;
-        if (err.message === 'QUOTA_EXCEEDED') {
-            return { error: 'QUOTA_EXCEEDED' };
-        }
         if (err.message && err.message.includes("could not identify a consent button")) {
             return { result: { selector: null, action: null } };
         }
-        if (err.message && (err.message.includes("Cannot capture restricted page") || err.message.includes("File access not enabled") || err.message.includes("Tabs cannot be edited") || err.message.includes("Action aborted"))) {
-            console.warn("ZenithGuard Cookie Consent skipped:", err.message);
-            return { error: err.message };
-        }
-        console.error("ZenithGuard Cookie Consent Error:", err.message);
-        return { error: err.message };
+        return handleCommonErrors(error, "Cookie Consent");
     }
 }

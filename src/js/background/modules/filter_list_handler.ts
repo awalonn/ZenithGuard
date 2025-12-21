@@ -6,7 +6,8 @@ const CACHE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface FilterList {
     id?: number | string;
-    url: string;
+    url?: string; // Made optional as presets rely on id/sourceUrl
+    sourceUrl?: string; // New
     enabled: boolean;
     name?: string;
     lastUpdated?: number;
@@ -56,7 +57,7 @@ function parseFilterList(text: string): ParsedRules {
             } else {
                 // Global cosmetic rule
                 if (!cosmeticRules['']) cosmeticRules[''] = [];
-                cosmeticRules[''].push(selector);
+                cosmeticRules[''] = cosmeticRules[''].concat(selector);
             }
         } else { // Network rule
             if (trimmed.startsWith('@@')) continue;
@@ -69,10 +70,29 @@ function parseFilterList(text: string): ParsedRules {
 
 export async function updateAllLists(force = false): Promise<void> {
     const { filterLists = [] } = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
+    const { enabledStaticRulesets = [] } = await chrome.storage.sync.get('enabledStaticRulesets') as { enabledStaticRulesets?: string[] };
+
+    // Combine custom lists AND enabled bundled presets
+    const listsToUpdate: FilterList[] = [...filterLists];
+
+    // Add enabled presets if they have a sourceUrl
+    for (const preset of BUNDLED_LISTS_PRESETS) {
+        // @ts-ignore - sourceUrl added in previous step
+        if (enabledStaticRulesets.includes(preset.id) && preset.sourceUrl) {
+            listsToUpdate.push({
+                id: preset.id,
+                // @ts-ignore
+                url: preset.sourceUrl, // Use sourceUrl as the fetch URL
+                enabled: true,
+                name: preset.name
+            });
+        }
+    }
+
     const updatePromises: Promise<void>[] = [];
 
-    for (const list of filterLists) {
-        if (!list.enabled) continue;
+    for (const list of listsToUpdate) {
+        if (!list.enabled || !list.url) continue;
 
         const cacheKey = `filterlist-${list.url}`;
         if (!force) {
@@ -83,26 +103,31 @@ export async function updateAllLists(force = false): Promise<void> {
         }
         updatePromises.push(updateList(list));
     }
+
     if (updatePromises.length > 0) {
-        console.log(`ZenithGuard: Updating ${updatePromises.length} *custom* filter list(s)...`);
+        console.log(`ZenithGuard: Updating ${updatePromises.length} filter lists...`);
         await Promise.all(updatePromises);
-        console.log("ZenithGuard: Custom filter list update complete.");
+        console.log("ZenithGuard: Filter list update complete.");
         await applyAllRules();
     }
 }
 
 export async function updateList(list: FilterList): Promise<void> {
+    // Only update status for CUSTOM lists (presets don't have UI status entries in filterLists storage)
+    const isCustomList = !BUNDLED_LISTS_PRESETS.some(p => p.id === list.id);
     const { filterLists = [] } = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
     const findList = (l: FilterList) => l.url === list.url;
 
     try {
-        const targetList = filterLists.find(findList);
-        if (targetList) {
-            targetList.status = 'updating';
-            await chrome.storage.sync.set({ filterLists });
+        if (isCustomList) {
+            const targetList = filterLists.find(findList);
+            if (targetList) {
+                targetList.status = 'updating';
+                await chrome.storage.sync.set({ filterLists });
+            }
         }
 
-        const response = await fetch(list.url, { signal: AbortSignal.timeout(60000) });
+        const response = await fetch(list.url!, { signal: AbortSignal.timeout(60000) });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -113,33 +138,43 @@ export async function updateList(list: FilterList): Promise<void> {
             throw new Error("Parsing resulted in empty rule sets. The list might be unavailable or invalid.");
         }
 
+        // HYBRID MODE OPTIMIZATION:
+        // If this is a bundled preset (e.g. EasyList), we ONLY save the cosmetic rules.
+        // The network rules are handled by the static ruleset (declarative_net_request) to save dynamic rule quota.
+        const rulesToCache = {
+            networkRules: isCustomList ? networkRules : [], // Discard network rules for presets
+            cosmeticRules: cosmeticRules,
+            lastUpdated: Date.now()
+        };
+
         const cacheKey = `filterlist-${list.url}`;
-        await chrome.storage.local.set({
-            [cacheKey]: {
-                networkRules: networkRules,
-                cosmeticRules: cosmeticRules,
-                lastUpdated: Date.now()
+        await chrome.storage.local.set({ [cacheKey]: rulesToCache });
+
+        if (isCustomList) {
+            const currentData = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
+            const currentFilterLists = currentData.filterLists || [];
+            const updatedList = currentFilterLists.find(findList);
+
+            if (updatedList) {
+                updatedList.status = 'success';
+                updatedList.ruleCount = networkRules.length + Object.values(cosmeticRules).reduce((acc, val) => acc + val.length, 0);
+                updatedList.lastUpdated = Date.now();
+                await chrome.storage.sync.set({ filterLists: currentFilterLists });
             }
-        });
-
-        const currentData = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
-        const currentFilterLists = currentData.filterLists || [];
-        const updatedList = currentFilterLists.find(findList);
-
-        if (updatedList) {
-            updatedList.status = 'success';
-            updatedList.ruleCount = networkRules.length + Object.values(cosmeticRules).reduce((acc, val) => acc + val.length, 0);
-            updatedList.lastUpdated = Date.now();
-            await chrome.storage.sync.set({ filterLists: currentFilterLists });
+        } else {
+            console.log(`ZenithGuard: Updated cached rules for preset ${list.id} (${list.name}).`);
         }
+
     } catch (error) {
         console.error(`ZenithGuard: Failed to update filter list ${list.url}.`, error);
-        const currentData = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
-        const currentFilterLists = currentData.filterLists || [];
-        const failedList = currentFilterLists.find(findList);
-        if (failedList) {
-            failedList.status = 'error';
-            await chrome.storage.sync.set({ filterLists: currentFilterLists });
+        if (isCustomList) {
+            const currentData = await chrome.storage.sync.get('filterLists') as { filterLists?: FilterList[] };
+            const currentFilterLists = currentData.filterLists || [];
+            const failedList = currentFilterLists.find(findList);
+            if (failedList) {
+                failedList.status = 'error';
+                await chrome.storage.sync.set({ filterLists: currentFilterLists });
+            }
         }
     }
 }
@@ -159,11 +194,28 @@ export async function getHidingRulesForDomain(domain: string): Promise<{ rules: 
 
     let allRulesForDomain: string[] = [];
 
-    // 1. Get rules from enabled STATIC (bundled) lists
+    // 1. Get rules from STATIC (bundled) lists OR their cached updates
     try {
         const enabledStaticIds = await chrome.declarativeNetRequest.getEnabledRulesets();
         for (const preset of BUNDLED_LISTS_PRESETS) {
             if (enabledStaticIds.includes(preset.id)) {
+                // Check for FRESH cached update first
+                // @ts-ignore
+                if (preset.sourceUrl) {
+                    // @ts-ignore
+                    const cacheKey = `filterlist-${preset.sourceUrl}`;
+                    const cached = await chrome.storage.local.get(cacheKey) as Record<string, FilterListCache>;
+                    const cosmeticRules = cached[cacheKey]?.cosmeticRules;
+
+                    if (cosmeticRules) {
+                        // Use fresh rules
+                        const matchingRules = (cosmeticRules[domain] || []).concat(cosmeticRules[''] || []);
+                        allRulesForDomain.push(...matchingRules);
+                        continue; // Skip bundled fallback
+                    }
+                }
+
+                // Fallback to bundled file
                 const url = chrome.runtime.getURL(preset.cosmeticRulesUrl);
                 const response = await fetch(url);
                 const cosmeticRules = await response.json() as CosmeticRules;
@@ -181,6 +233,7 @@ export async function getHidingRulesForDomain(domain: string): Promise<{ rules: 
     // 2. Get rules from enabled CUSTOM (dynamic) lists
     const enabledCustomLists = (filterLists || []).filter(l => l.enabled && l.status === 'success');
     for (const list of enabledCustomLists) {
+        if (!list.url) continue;
         const cacheKey = `filterlist-${list.url}`;
         const cached = await chrome.storage.local.get(cacheKey) as Record<string, FilterListCache>;
         const cosmeticRules = cached[cacheKey]?.cosmeticRules;

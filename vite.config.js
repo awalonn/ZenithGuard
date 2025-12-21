@@ -26,6 +26,7 @@ export default defineConfig({
 
                 // Blocked Page
                 blocked: path.resolve(__dirname, 'src/pages/blocked.html'),
+                focus_blocked: path.resolve(__dirname, 'src/pages/focus_blocked.html'),
 
                 // Dynamic Scripts (Must be compiled from TS)
                 yt_interceptor: path.resolve(__dirname, 'src/js/content/yt_interceptor.ts'),
@@ -75,7 +76,7 @@ export default defineConfig({
                     }
                 },
                 { src: 'src/icons', dest: '.' },
-                { src: 'src/rules', dest: '.' },
+                { src: 'src/rulesets', dest: '.' },
                 { src: 'src/_locales', dest: '.' },
                 { src: 'src/css', dest: '.' },
             ]

@@ -29,13 +29,8 @@ declare global {
 
 /**
  * Displays a toast notification. Can be used from content scripts or extension pages.
- * @param {object} options - The options for the toast.
- * @param {string} options.message - The message to display.
- * @param {string} [options.type='success'] - The type of toast ('success', 'error', 'loading', 'info').
- * @param {number} [options.duration=3000] - Duration in ms. 0 for a persistent toast.
- * @param {string|null} [options.id=null] - An optional ID for the toast element.
  */
-window.ZenithGuardToastUtils.showToast = ({ message, type = 'success', duration = 3000, id = null }: ToastOptions) => {
+export const showToast = ({ message, type = 'success', duration = 3000, id = null }: ToastOptions) => {
     // Ensure a container exists, creating one if necessary.
     let container = document.getElementById('zg-toast-container');
     if (!container) {
@@ -77,3 +72,6 @@ window.ZenithGuardToastUtils.showToast = ({ message, type = 'success', duration 
         }, duration);
     }
 };
+
+// Backwards compatibility for content scripts (global attachment)
+window.ZenithGuardToastUtils = { showToast };

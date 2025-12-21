@@ -5,16 +5,48 @@ import * as ai from './modules/ai_handler.js';
 import { updateMalwareList } from './modules/malware_protection.js';
 import { updateYouTubeRules } from './modules/youtube_rules_updater.js';
 import { updateTrackerList } from './modules/tracker_list_updater.js';
+import * as focusMode from './modules/focus_mode_manager.js';
 import { initializeNetworkLogger } from './modules/network_logger.js';
 import { createContextMenus, initializeContextMenuListeners } from './modules/context_menu_manager.js';
 import { initializeTabManager, injectContentScripts } from './modules/tab_manager.js';
 import { initializeMessageHandler } from './modules/message_handler.js';
+import { PrivacyManager } from './modules/privacy_manager.js';
 
 // Initialize Modules
 initializeNetworkLogger();
 initializeContextMenuListeners();
 initializeTabManager();
 initializeMessageHandler();
+
+// Singleton Privacy Manager
+const privacyManager = new PrivacyManager();
+
+// --- Privacy Insights Listener ---
+chrome.webRequest.onBeforeRequest.addListener(
+    (details) => {
+        if (details.tabId > -1 && details.url) {
+            privacyManager.processRequest(details.tabId, details.url);
+        }
+    },
+    { urls: ["<all_urls>"] }
+);
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'loading') {
+        privacyManager.resetStats(tabId);
+    }
+});
+
+// Handle Privacy Stats Request (Parallel to central message handler)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'GET_PRIVACY_STATS') {
+        const stats = privacyManager.getStats(request.tabId);
+        sendResponse(stats);
+        return true; // async response
+    }
+    return false;
+});
+
 
 chrome.runtime.onInstalled.addListener(async (details) => {
     await storageManager.initializeSettingsIfNeeded();
@@ -45,6 +77,11 @@ chrome.runtime.onStartup.addListener(async () => {
 chrome.storage.onChanged.addListener(async (changes, area) => {
     if (area !== 'sync') return;
     if (changes.geminiApiKey) ai.resetAiClient();
+
+    // Trigger rule update if Focus Mode toggles
+    if (changes.isFocusModeEnabled || changes.focusModeUntil || changes.focusBlocklist) {
+        await ruleEngine.applyAllRules();
+    }
 
     const ruleKeys = [
         'networkBlocklist', 'customHidingRules', 'heuristicKeywords',

@@ -1,0 +1,1 @@
+import"./modulepreload-polyfill-B5Qt9EMX.js";/* empty css              *//* empty css               */document.addEventListener("DOMContentLoaded",()=>{const t=document.getElementById("go-back-btn");t&&t.addEventListener("click",e=>{e.preventDefault(),history.back()})});

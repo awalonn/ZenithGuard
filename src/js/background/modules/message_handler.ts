@@ -7,6 +7,27 @@ import { updateYouTubeRules } from './youtube_rules_updater.js';
 import { updateTrackerList } from './tracker_list_updater.js';
 import { generatePrivacyInsights } from './privacy_insights_engine.js';
 import { getNetworkLogs, clearNetworkLogs } from './network_logger.js';
+import * as focusMode from './focus_mode_manager.js';
+// We should have privacyManager available or passed in. 
+// Refactor: Pass privacyManager to initializeMessageHandler or export it from a singleton module.
+// For now, let's assume we can access it via a module we create or simple variable if we can't easily export.
+// Actually, background.ts imports message_handler. 
+// A better pattern: message_handler exports 'registerHandlers(privacyManager)'?
+// Or we moving privacy logic here?
+// Let's rely on the PrivacyManager singleton pattern if possible, or simpler: 
+// We will export a generic 'getPrivacyStats' helper in a new module if needed, 
+// BUT simplest fix: Add handlers here that use the imported modules. 
+// The issue is `privacyManager` instance is in `background.ts`.
+// Solution: We will move the PrivacyManager instantiation to a separate module 'modules/privacy_service.ts' (singleton) or similar.
+// For expediency: I will modify `background.ts` to export the instance, 
+// BUT `background.ts` is the entry point, difficult to import from.
+// Alternative: Instantiate PrivacyManager IN message_handler.ts? No, it needs webRequest listeners in background.
+// COMPROMISE: I will let `background.ts` handle `GET_PRIVACY_STATS` directly as I planned before, 
+// and ONLY add Focus Mode here which is stateless/module-based.
+// Wait, `message_handler.ts` *consumes* all messages. If I don't add it here, it returns false.
+// So I MUST add it here.
+// I will create a `privacy_service.ts` to hold the singleton.
+
 
 const lastAnalysisByTab: { [key: number]: number } = {};
 const ANALYSIS_COOLDOWN_MS = 20_000;
@@ -36,8 +57,14 @@ export function initializeMessageHandler() {
                     const response = await handler(request, sender);
                     sendResponse(response);
                 } catch (error) {
-                    console.error(`Error handling message ${request.type}:`, error);
-                    sendResponse({ error: (error as Error).message });
+                    const msg = (error as Error).message;
+                    // Silence known operational errors
+                    if (msg === 'QUOTA_EXCEEDED' || msg === 'TAB_CLOSED') {
+                        console.warn(`ZenithGuard: Handled known error in ${request.type}:`, msg);
+                    } else {
+                        console.error(`Error handling message ${request.type}:`, error);
+                    }
+                    sendResponse({ error: msg });
                 }
             })();
             return true;
@@ -78,9 +105,53 @@ const actions = {
         };
         try {
             const response = await ai.handleDefeatAdblockWall(tabId, onProgress);
-            if (response.error) throw new Error(response.error);
+            if (response.error) {
+                return response;
+            }
+
+            // --- RELIABILITY FIX (v1.2.1) ---
+            // Send message to content script directly from background
+            // This ensures the fix is applied even if the popup is closed.
+            if (response.selectors) {
+                // BROADCAST TO ALL FRAMES (v1.2.4)
+                // Adblock walls are often hidden inside iframes. We must send the command to EVERY frame.
+                try {
+                    const frames = await chrome.webNavigation.getAllFrames({ tabId });
+                    if (frames) {
+                        for (const frame of frames) {
+                            chrome.tabs.sendMessage(tabId, {
+                                type: 'EXECUTE_ADBLOCK_WALL_FIX',
+                                selectors: response.selectors
+                            }, { frameId: frame.frameId }).catch(() => { });
+                        }
+                        console.log(`ZenithGuard: Broadcasted wall-fix to ${frames.length} frames.`);
+                    }
+                } catch (e) {
+                    // Fallback to top frame if webNavigation fails
+                    chrome.tabs.sendMessage(tabId, {
+                        type: 'EXECUTE_ADBLOCK_WALL_FIX',
+                        selectors: response.selectors
+                    }).catch(() => { });
+                }
+
+                // Persist the fix from background
+                const tab = await chrome.tabs.get(tabId);
+                if (tab && tab.url) {
+                    const domain = new URL(tab.url).hostname;
+                    const { persistentWallFixes = {} } = await chrome.storage.sync.get('persistentWallFixes') as any;
+                    persistentWallFixes[domain] = {
+                        overlaySelector: response.selectors.overlaySelector,
+                        scrollSelector: response.selectors.scrollSelector,
+                        enabled: true
+                    };
+                    await chrome.storage.sync.set({ persistentWallFixes });
+                    console.log(`ZenithGuard: Persistent fix saved for ${domain} from background.`);
+                }
+            }
+
             return response;
         } catch (error) {
+            // This catches unexpected errors that were not caught inside handleDefeatAdblockWall
             chrome.tabs.sendMessage(tabId, { type: 'SHOW_ERROR_TOAST', message: (error as Error).message }).catch(() => { });
             throw error;
         }
@@ -164,6 +235,16 @@ const actions = {
     'GET_PRIVACY_INSIGHTS': (request: any) => {
         if (!request.tabId) return null;
         return generatePrivacyInsights(getNetworkLogs(request.tabId));
+    },
+    'START_FOCUS_MODE': async (request: any) => {
+        await focusMode.startFocusMode(request.duration);
+        await debouncedApplyAllRules(); // Re-apply to block sites
+        return { success: true };
+    },
+    'STOP_FOCUS_MODE': async () => {
+        await focusMode.stopFocusMode();
+        await debouncedApplyAllRules(); // Re-apply to unblock sites
+        return { success: true };
     },
     'GET_HIDING_RULES_FOR_DOMAIN': (request: any) => filterListHandler.getHidingRulesForDomain(request.domain),
     'PREVIEW_ELEMENT': async (request: any, sender: chrome.runtime.MessageSender) => {

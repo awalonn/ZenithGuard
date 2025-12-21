@@ -57,6 +57,20 @@ Full Settings Management: A complete dashboard to track your stats, manage all y
 rules, and toggle bundled filter lists.
 Data Management: Export all your custom settings to a JSON file and import them on another
 device.
+
+Focus Mode
+Need to get work done? Focus Mode temporarily blocks distracting sites (like YouTube, Reddit, Twitter) for 25 minutes.
+- **One-Click Activation**: Toggle it directly from the popup tools menu.
+- **Custom Blocklist**: Add or remove sites from your "Focus Blocklist" in the Settings page.
+- **Motivational Block Screen**: If you try to visit a blocked site, you'll see a clean, distraction-free page with a motivational quote.
+- **Timer**: A countdown timer in the popup shows you how much focus time is left.
+
+Advanced Privacy Insights & Dashboard
+ZenithGuard now visualizes your privacy in real-time.
+- **Privacy Grade**: Every site you visit gets a grade (A-F) based on the number and severity of trackers blocked.
+- **Privacy Dashboard**: A dedicated tab in Settings showing your 30-day history of blocks, complete with interactive charts and KPI cards for "Data Saved" and "Total Threats Blocked".
+- **Contextual Insights**: The popup shows exactly *why* a site got a bad grade (e.g., "Session Replay Script Detected", "Canvas Fingerprinting").
+
 How to Build (For Developers)
 This extension uses a hybrid architecture and requires a one-time build step to populate the static
 filter lists.

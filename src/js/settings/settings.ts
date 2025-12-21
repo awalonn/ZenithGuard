@@ -25,8 +25,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const rulesManager = new RulesManager(syncSettings, uiManager.showToast);
     rulesManager.initialize();
 
-    const dashboardManager = new DashboardManager(syncSettings, localSettings);
+    const dashboardManager = new DashboardManager();
     dashboardManager.initialize();
+
+    // Hook up tab switching to re-render dashboard
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (item.getAttribute('data-tab') === 'dashboard') {
+                dashboardManager.renderDashboard();
+            }
+        });
+    });
 
     const apiKeyManager = new ApiKeyManager(syncSettings, uiManager.showToast);
     apiKeyManager.initialize();

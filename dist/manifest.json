@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ZenithGuard",
-  "version": "1.0.4",
-  "description": "An advanced ad & privacy blocker leveraging AI.",
+  "version": "2.1.0",
+  "description": "Advanced AI-powered Ad Blocker and Privacy Guard",
   "default_locale": "en",
   "permissions": [
     "storage",
@@ -14,7 +14,8 @@
     "webRequest",
     "webNavigation",
     "cookies",
-    "contextMenus"
+    "contextMenus",
+    "browsingData"
   ],
   "host_permissions": [
     "<all_urls>"
@@ -69,7 +70,6 @@
         "css/theme.css",
         "src/pages/analyzer.html",
         "src/pages/logger.html",
-        "rules/youtube_rules.json",
         "js/yt_interceptor.js",
         "js/content/inspector.js",
         "js/content/zapper.js",
@@ -94,7 +94,8 @@
       "js": [
         "js/content_bundle.js"
       ],
-      "run_at": "document_end"
+      "run_at": "document_start",
+      "all_frames": true
     }
   ],
   "declarative_net_request": {
@@ -102,17 +103,22 @@
       {
         "id": "easylist",
         "enabled": true,
-        "path": "rules/easylist.json"
+        "path": "rulesets/easylist.json"
       },
       {
         "id": "easyprivacy",
         "enabled": true,
-        "path": "rules/easyprivacy.json"
+        "path": "rulesets/easyprivacy.json"
       },
       {
-        "id": "ublock_annoyances",
+        "id": "annoyances",
         "enabled": true,
-        "path": "rules/ublock_annoyances.json"
+        "path": "rulesets/annoyances.json"
+      },
+      {
+        "id": "youtube",
+        "enabled": true,
+        "path": "rulesets/youtube.json"
       }
     ]
   }

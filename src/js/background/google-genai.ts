@@ -75,11 +75,11 @@ export class GenerativeModel {
             throw new Error("Model name is required.");
         }
 
-        const modelName = request.model === 'gemini-2.5-flash'
-            ? 'gemini-2.5-flash-preview-09-2025'
-            : request.model;
-
+        const modelName = request.model;
         const url = `${API_BASE_URL}/${modelName}:generateContent?key=${this.apiKey}`;
+
+        // Log the endpoint being called (masking the key)
+        console.log(`ZenithGuard: Calling Gemini API at .../models/${modelName}:generateContent`);
 
         const payload: any = {
             contents: Array.isArray(request.contents) ? request.contents : [request.contents],

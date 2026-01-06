@@ -17,7 +17,24 @@
         </header>
 
         <section class="changelog">
-            <h2>Version 2.2.0 - The Fortress Update</h2>
+            <h2>Version 2.4.0 - The Precision Update</h2>
+
+            <div class="change-item">
+                <div class="change-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path
+                            d="M12,18H6V14H12V18M21,14H12V12H21V14M21,10H12V8H21V10M21,6H12V4H21V6M21,18H14V16H21V18M6,10V4H10V10H6M6,12H10V18H6V12Z" />
+                    </svg>
+                </div>
+                <div class="change-content">
+                    <h3>Gist Rules - Always Latest</h3>
+                    <p>
+                        We've improved the dynamic rule synchronization. ZenithGuard now automatically detects and
+                        migrates to "Always Latest" Gist URLs, ensuring your trackers and YouTube rules are always
+                        up-to-the-minute without pinning to old versions.
+                    </p>
+                </div>
+            </div>
 
             <div class="change-item">
                 <div class="change-icon">
@@ -26,11 +43,11 @@
                     </svg>
                 </div>
                 <div class="change-content">
-                    <h3>Firefox Support</h3>
+                    <h3>Redundancy Cleanup</h3>
                     <p>
-                        ZenithGuard is now truly cross-platform! We have achieved **Full Compatibility with Mozilla
-                        Firefox (Gecko)**.
-                        Enjoy the same advanced AI protection on your favorite privacy-focused browser.
+                        The "Subscriptions" tab is now cleaner! We've removed the redundant manual EasyList entry as
+                        it's
+                        now handled directly by our "Built-in" ruleset architecture, saving you memory and loading time.
                     </p>
                 </div>
             </div>
@@ -43,17 +60,14 @@
                     </svg>
                 </div>
                 <div class="change-content">
-                    <h3>Anti-Tamper & Keep-Alive</h3>
+                    <h3>Zombie Script Protection</h3>
                     <p>
-                        We've added a robust **Tamper Detector** that instantly restores the extension's interface if
-                        hostile scripts try to remove it.
-                        Plus, a new **Service Worker Heartbeat** ensures our AI engine never sleeps during critical
-                        analysis tasks.
+                        Improved robustness for long-lived pages like YouTube Live Streams. Legacy scripts now
+                        gracefully retire when the extension is updated, preventing "Context Invalidated" console
+                        errors and keeping your browser console clean.
                     </p>
                 </div>
             </div>
-
-            <h2>Version 2.1.0 - Usability & Power</h2>
 
             <div class="change-item">
                 <div class="change-icon">
@@ -63,26 +77,10 @@
                     </svg>
                 </div>
                 <div class="change-content">
-                    <h3>Dashboard Overhaul</h3>
+                    <h3>Pro Codebase Audit</h3>
                     <p>
-                        A completely redesigned **Filter Lists** section makes it clear which rules are Static (Network)
-                        and which are Dynamic (Cosmetic).
-                        Real-time rule counters show exactly how many filters are active.
-                    </p>
-                </div>
-            </div>
-
-            <div class="change-item">
-                <div class="change-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" />
-                    </svg>
-                </div>
-                <div class="change-content">
-                    <h3>Manual Blocklist</h3>
-                    <p>
-                        You can now manually add specific domains to your **Network Blocklist** directly from the
-                        settings page, giving you granular control over what gets blocked.
+                        A total audit of all 23 active modules. We've removed deprecated logic and optimized internal
+                        import flows for maximum performance and future-proofing.
                     </p>
                 </div>
             </div>

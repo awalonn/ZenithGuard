@@ -2,6 +2,16 @@
 
 All notable changes to ZenithGuard will be documented in this file.
 
+## [2.2.0] - 2025-12-21
+
+### Added
+- **Firefox Support**: Full compatibility with Mozilla Firefox (Gecko).
+    - Added `build:firefox` script for dedicated Gecko builds.
+    - Automated manifest transformation for Gecko specific settings.
+- **Service Worker "Heartbeat"**: Implemented a keep-alive mechanism to prevent the extension from sleeping during long AI analysis tasks.
+- **Tamper Detection**: New security module that detects if the extension's UI or Styles are removed by hostile scripts and automatically attempts to restore them.
+- **AI Handler Resilience**: Improved error handling and keep-alive integration for all AI operations (Hiding, Analyzing, Summarizing).
+
 ## [2.1.0] - 2025-12-21
 
 ### Added

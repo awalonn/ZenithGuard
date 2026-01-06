@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // NEW: Stats Elements
     const adsBlockedCountEl = document.getElementById('ads-blocked-count');
     const trackersBlockedCountEl = document.getElementById('trackers-blocked-count');
+    // Analyze Button removed
 
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -385,20 +386,23 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.close();
         });
 
+        // Open Full Analyzer in New Tab
+        document.getElementById('privacy-grade-badge')?.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const tab = await getCurrentTab();
+            if (tab && tab.id) {
+                if (!tab.url) return;
+                const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=${tab.id}&url=${encodeURIComponent(tab.url)}`);
+                chrome.tabs.create({ url: analyzerUrl });
+            }
+        });
+
+
         document.getElementById('fix-cookies-btn')?.addEventListener('click', async () => {
             const tab = await getCurrentTab();
             if (tab && tab.id) {
                 showToast({ message: 'AI is looking for cookie banners...', type: 'loading' });
                 chrome.runtime.sendMessage({ type: 'HANDLE_COOKIE_CONSENT_ACTION', data: { tabId: tab.id } });
-            }
-        });
-
-        document.getElementById('privacy-grade-badge')?.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const tab = await getCurrentTab();
-            if (tab && tab.id) {
-                const analyzerUrl = chrome.runtime.getURL(`src/pages/analyzer.html?tabId=${tab.id}&url=${encodeURIComponent(tab.url!)}`);
-                chrome.tabs.create({ url: analyzerUrl });
             }
         });
 
@@ -718,16 +722,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     function updatePerSiteToggleUI() {
         perSiteToggle.checked = !isSiteDisabled;
 
+        const siteStatusContainer = document.querySelector('.site-status');
         if (!isGloballyEnabled) {
             perSiteToggle.disabled = true;
+            siteStatusContainer?.classList.add('disabled');
         } else {
             perSiteToggle.disabled = false;
+            siteStatusContainer?.classList.remove('disabled');
         }
     }
 
     function escapeHtml(unsafe: string | undefined): string {
         if (!unsafe) return '';
         return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
+
+    function renderAiResultsToInsights(results: any) {
+        // Switch to Insights tab
+        const insightsTabBtn = document.querySelector('.tab-btn[data-tab="insights"]') as HTMLElement;
+        if (insightsTabBtn) insightsTabBtn.click();
+
+        // Populate Insights List
+        const insightsList = document.getElementById('insights-list');
+        if (insightsList) {
+            let html = '';
+
+            // Dark Patterns
+            if (results.darkPatterns && results.darkPatterns.length > 0) {
+                html += results.darkPatterns.map((dp: any) => `
+                    <div class="insight-item">
+                        <div class="insight-icon type-alert">${ICONS['megaphone'] || ''}</div>
+                        <div class="insight-message"><strong>${htmlEscape(dp.patternName)}</strong>: ${htmlEscape(dp.description)}</div>
+                    </div>`).join('');
+            }
+
+            // Network Threats
+            if (results.networkThreats && results.networkThreats.length > 0) {
+                html += results.networkThreats.map((nt: any) => `
+                    <div class="insight-item">
+                        <div class="insight-icon type-warning">${ICONS['shield'] || ''}</div>
+                        <div class="insight-message"><strong>Verified Blocked</strong>: ${htmlEscape(nt.reason) || 'Tracking attempt blocked.'}</div>
+                    </div>`).join('');
+            }
+
+            // Visual Annoyances
+            if (results.visualAnnoyances && results.visualAnnoyances.length > 0) {
+                html += results.visualAnnoyances.map((va: any) => `
+                    <div class="insight-item">
+                        <div class="insight-icon type-info">${ICONS['record'] || ''}</div>
+                        <div class="insight-message"><strong>Visual Nuisance</strong>: ${htmlEscape(va.description)}</div>
+                    </div>`).join('');
+            }
+
+            if (html) {
+                insightsList.innerHTML = html;
+            } else {
+                insightsList.innerHTML = '<p class="no-items-message">AI found no major threats on this page.</p>';
+            }
+        }
+    }
+
+    function htmlEscape(str: string) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     }
 
     initialize();

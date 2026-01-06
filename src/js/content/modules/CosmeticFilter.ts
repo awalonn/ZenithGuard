@@ -1,5 +1,6 @@
 
 import { HidingRule } from '../../types.js'; // Adjust path if needed
+import { tamperDetector } from './tamper_detector.js'; // NEW: Import Tamper Detector
 
 export class CosmeticFilter {
 
@@ -27,6 +28,13 @@ export class CosmeticFilter {
         ];
 
         const validRules = rules.filter(r => r.enabled && r.value);
+
+        // If no valid rules (whitelisted or protection off), clear all
+        if (validRules.length === 0) {
+            this.stop(source);
+            return;
+        }
+
         const cssRules = validRules
             .map(r => r.value)
             .filter(selector => !SAFE_SELECTORS.some(safe => selector.includes(safe)));
@@ -39,11 +47,21 @@ export class CosmeticFilter {
         }
 
         // AGGRESSIVE MODE: For Custom Rules (Zapper/Manual) and AI Rules
-        // We apply the "Nuclear" option: Physical Removal + Mutation Observation
         if (source === 'custom') {
             cssRules.forEach(s => this.aggressiveRules.add(s));
             this.startAggressiveObserver();
             this.enforceAggressiveFiltering();
+        }
+
+        // NEW: Protect the style tag
+        if (styleId) {
+            tamperDetector.protect(styleId, () => {
+                // Determine rules to re-apply. 
+                // Since this callback captures 'rules' from the closure, it might be stale if applyHidingRules is called again with new rules.
+                // ideally we should unprotect first, but protect() overwrites anyway.
+                // However, capturing 'rules' is fine because if new rules come, applyHidingRules runs, overwriting the callback.
+                this.applyHidingRules(rules, source);
+            });
         }
     }
 
@@ -254,6 +272,44 @@ export class CosmeticFilter {
     private wallFixObserver: MutationObserver | null = null;
     private activeWallFix: { overlaySelector: string, scrollSelector?: string } | null = null;
 
+    /**
+     * Stops the filter and clears all injected styles/state.
+     * @param source Optional specific source to clear. If omitted, clears EVERYTHING.
+     */
+    public stop(source?: string) {
+        if (source) {
+            const styleId = `zenithguard-styles-${source}`;
+            const styleSheet = document.getElementById(styleId);
+            if (styleSheet) styleSheet.textContent = '';
+        } else {
+            // Clear all possible sources
+            ['custom', 'filterList', 'default', 'preview', 'manual-preview'].forEach(s => {
+                const el = document.getElementById(`zenithguard-styles-${s}`);
+                if (el) el.remove();
+            });
+
+            const aggressiveStyle = document.getElementById('zenithguard-aggressive-styles');
+            if (aggressiveStyle) aggressiveStyle.remove();
+
+            const manualPreview = document.getElementById('zenithguard-manual-preview-style');
+            if (manualPreview) manualPreview.remove();
+
+            const preview = document.getElementById('zenithguard-preview-style');
+            if (preview) preview.remove();
+        }
+
+        // Always clear aggressive state and observers if stopping globally or custom source
+        if (!source || source === 'custom') {
+            this.aggressiveRules.clear();
+            if (this.wallFixObserver) {
+                this.wallFixObserver.disconnect();
+                this.wallFixObserver = null;
+            }
+            if (this.observerTimeout) clearTimeout(this.observerTimeout);
+        }
+
+        console.log(`ZenithGuard: Cosmetic Filter stopped${source ? ` for source: ${source}` : ''}.`);
+    }
 
     /**
      * Finds elements everywhere, including inside open Shadow Roots.

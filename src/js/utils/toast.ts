@@ -1,4 +1,7 @@
 // js/utils/toast.ts - Centralized Toast Notification Handler
+// Note: Imports in utility files can be tricky if not bundled correctly.
+// content-bundle.ts bundles this file.
+import { tamperDetector } from '../content/modules/tamper_detector.js'; // Adjust path relative to src/js/utils
 // REFACTORED: This is no longer an ES module.
 // It attaches its functions to the window object to be accessible
 // from content scripts injected via scripting.executeScript.
@@ -37,6 +40,14 @@ export const showToast = ({ message, type = 'success', duration = 3000, id = nul
         container = document.createElement('div');
         container.id = 'zg-toast-container';
         document.body.appendChild(container);
+
+        // NEW: Protect Container
+        tamperDetector.protect('zg-toast-container', () => {
+            // Re-create empty container if deleted
+            const newContainer = document.createElement('div');
+            newContainer.id = 'zg-toast-container';
+            document.body.appendChild(newContainer);
+        });
     }
 
     // If an ID is provided, remove any existing toast with the same ID

@@ -120,10 +120,12 @@ export async function applyAllRules() {
         // Logic to enable standard lists if their ID is in the enabled set or if we default to on
         // For ZenithGuard 2.0, we can assume standard lists are enabled if not explicitly disabled or if the user selected them.
         // The most robust way is to check the BUNDLED_LISTS_PRESETS logic or simply trust enabledStaticRulesets.
-        // Let's iterate the manifest presets:
-        if (enabledIds.has('easylist') || enabledIds.size === 0) rulesetsToEnable.add('easylist');      // Default ON
-        if (enabledIds.has('easyprivacy') || enabledIds.size === 0) rulesetsToEnable.add('easyprivacy');   // Default ON
-        if (enabledIds.has('annoyances') || enabledIds.has('ublock_annoyances') || enabledIds.size === 0) rulesetsToEnable.add('annoyances');    // Default ON (New in 2.0)
+        const enabledSetting = settings.enabledStaticRulesets;
+        const defaultOn = enabledSetting === undefined;
+
+        if (defaultOn || enabledIds.has('easylist')) rulesetsToEnable.add('easylist');
+        if (defaultOn || enabledIds.has('easyprivacy')) rulesetsToEnable.add('easyprivacy');
+        if (defaultOn || enabledIds.has('annoyances') || enabledIds.has('ublock_annoyances')) rulesetsToEnable.add('annoyances');
 
         const enableList = Array.from(rulesetsToEnable);
         const disableList = NATIVE_RULESETS.filter(id => !rulesetsToEnable.has(id));
@@ -142,17 +144,25 @@ export async function applyAllRules() {
             let allowRuleId = ALLOW_RULE_ID_START;
             const allowRules: chrome.declarativeNetRequest.Rule[] = [];
             for (const domain of disabledForSite) {
+                const domains = domain.startsWith('www.') ? [domain, domain.replace('www.', '')] : [domain, `www.${domain}`];
+
                 allowRules.push({
                     id: allowRuleId++,
-                    priority: 99,
+                    priority: 999,
                     action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
-                    condition: { "requestDomains": [domain], "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"] as chrome.declarativeNetRequest.ResourceType[] }
+                    condition: {
+                        requestDomains: domains,
+                        resourceTypes: ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other", "websocket"] as chrome.declarativeNetRequest.ResourceType[]
+                    }
                 });
                 allowRules.push({
                     id: allowRuleId++,
-                    priority: 99,
+                    priority: 999,
                     action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
-                    condition: { "initiatorDomains": [domain], "resourceTypes": ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other"] as chrome.declarativeNetRequest.ResourceType[] }
+                    condition: {
+                        initiatorDomains: domains,
+                        resourceTypes: ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other", "websocket"] as chrome.declarativeNetRequest.ResourceType[]
+                    }
                 });
             }
             addRules.push(...allowRules);
@@ -165,7 +175,7 @@ export async function applyAllRules() {
         const customRulesets = [
             getIsolationModeRules(settings.isolationModeSites),
             await getFocusModeRules(),
-            settings.isHeuristicEngineEnabled ? getHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist || []) : [],
+            settings.isHeuristicEngineEnabled ? getHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist || [], disabledForSite) : [],
             getDefaultBlockRules(settings.defaultBlocklist),
             getNetworkBlockRules(settings.networkBlocklist),
             settings.isUrlCleanerEnabled ? getURLCleanerRules(URL_CLEANER_RULE_ID_START, []) : []
@@ -213,7 +223,7 @@ function getIsolationModeRules(sites: any[]) {
         }));
 }
 
-function getHeuristicRules(keywords: any[], allowlist: any[]) {
+function getHeuristicRules(keywords: any[], allowlist: any[], globalDisabledSites: string[] = []) {
     const rules: chrome.declarativeNetRequest.Rule[] = [];
     if (!keywords || keywords.length === 0) return rules;
 
@@ -227,7 +237,9 @@ function getHeuristicRules(keywords: any[], allowlist: any[]) {
         .filter(r => r.enabled)
         .map(r => r.value);
 
-    const excludedInitiators = enabledAllowlistDomains.length > 0 ? enabledAllowlistDomains : undefined;
+    // Merge specific heuristic allowlist with global disabled sites
+    const excludedInitiators = [...new Set([...enabledAllowlistDomains, ...globalDisabledSites])];
+    const finalExclusions = excludedInitiators.length > 0 ? excludedInitiators : undefined;
 
     let currentRegexParts: string[] = [];
     let currentRegexLength = 0;
@@ -251,7 +263,7 @@ function getHeuristicRules(keywords: any[], allowlist: any[]) {
                 condition: {
                     regexFilter: regexStr,
                     resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
-                    excludedInitiatorDomains: excludedInitiators
+                    excludedInitiatorDomains: finalExclusions
                 }
             });
             currentRegexParts = [keyword];
@@ -271,7 +283,7 @@ function getHeuristicRules(keywords: any[], allowlist: any[]) {
             condition: {
                 regexFilter: currentRegexParts.join('|'),
                 resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
-                excludedInitiatorDomains: excludedInitiators
+                excludedInitiatorDomains: finalExclusions
             }
         });
     }

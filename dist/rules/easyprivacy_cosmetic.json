@@ -1,0 +1,108 @@
+{
+  "": [
+    "#cxense-recs-in-article",
+    ".embed-responsive-trendmd"
+  ],
+  "usaa.com": [
+    "+js(set-cookie, GPC, 1, , reload, 1)"
+  ],
+  "bolighub.dk": [
+    "+js(acs, document.getElementsByTagName, gtm.js)"
+  ],
+  "apnews.com": [
+    "+js(acs, document.getElementsByTagName, .pubads)"
+  ],
+  "sidereel.com": [
+    "+js(acs, document.getElementsByTagName, .pubads)"
+  ],
+  "ranker.com": [
+    "+js(aost, HTMLElement.prototype.insertBefore, /[A-Z] .+chunks\\/\\d{4}\\./)"
+  ],
+  "reuters.com": [
+    "+js(aost, admiral, .js?)"
+  ],
+  "gbatemp.net": [
+    "+js(set, admiral, noopFunc)"
+  ],
+  "baeldung.com": [
+    "+js(rmnt, script, admiral)"
+  ],
+  "cheatsheet.com": [
+    "+js(rmnt, script, admiral)"
+  ],
+  "pwinsider.com": [
+    "+js(rmnt, script, admiral)"
+  ],
+  "mensjournal.com": [
+    "+js(rmnt, script, admiral)"
+  ],
+  "usatoday.com": [
+    "+js(set, gnt.x.adm, '')"
+  ],
+  "247sports.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "cbsnews.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "cbssports.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "indiewire.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "masslive.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "pennlive.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "nypost.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "pagesix.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "syracuse.com": [
+    "+js(rmnt, script, '\"data-adm-url\"')"
+  ],
+  "anikore.jp": [
+    "html[class^=\"loading\"]:style(visibility: visible !important;)"
+  ],
+  "fedex.com": [
+    "+js(set-local-storage-item, fdx_enable_new_detail_page, true)"
+  ],
+  "mwed.jp": [
+    "+js(acs, document.createElement, keen-tracking)"
+  ],
+  "nicovideo.jp": [
+    "+js(no-fetch-if, stella)",
+    "+js(no-xhr-if, stella)"
+  ],
+  "abema.tv": [
+    "^script:has-text(NREUM)",
+    "+js(rmnt, script, NREUM)"
+  ],
+  "phileweb.com": [
+    "+js(set-attr, span[class] img.lazyload[width], src, [data-src])"
+  ],
+  "e-begin.jp": [
+    ".inviewSection:not(.is-show):style(transform: translateY(0) !important; opacity: 1 !important;)"
+  ],
+  "mustar.meitetsu.co.jp": [
+    "body[style=\"opacity: 0;\"]:style(opacity: 1 !important;)"
+  ],
+  "coomer.st": [
+    "+js(set-local-storage-item, plausible_ignore, true)"
+  ],
+  "kemono.cr": [
+    "+js(set-local-storage-item, plausible_ignore, true)"
+  ],
+  "ncbi.nlm.nih.gov": [
+    "+js(set, ncbi.sg, {})",
+    "+js(set, ncbi.sg.ping, noopFunc)"
+  ],
+  "bitdefender.com": [
+    "body[style=\"opacity: 0;\"]:style(opacity: 1 !important;)"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "name": "zenithguard",
-  "version": "2.1.0",
+  "version": "2.4.0",
   "description": "ZenithGuard - Advanced AI Ad & Privacy Blocker",
   "main": "js/background/background.js",
   "type": "module",
@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "vite build && vite build -c vite.content.config.js",
+    "build:firefox": "vite build --outDir dist-firefox && vite build -c vite.content.config.js --outDir dist-firefox && node scripts/build_firefox_manifest.cjs dist-firefox/manifest.json",
     "watch": "vite build --watch",
     "update-rulesets": "node scripts/dev_build_static_rulesets.cjs",
     "release": "node release.js",

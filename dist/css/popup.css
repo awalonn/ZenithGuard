@@ -181,6 +181,13 @@ body {
 .site-status {
     text-align: center;
     width: 100%;
+    transition: opacity var(--transition-fast);
+}
+
+.site-status.disabled {
+    opacity: 0.4;
+    filter: grayscale(0.5);
+    pointer-events: none;
 }
 
 .site-status h1 {
@@ -710,4 +717,46 @@ input:checked+.slider-sm:before {
 
 .briefing-cta-btn:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+/* Menu Grid (Bottom Action Buttons) */
+.menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%);
+    border: 1px solid var(--bg-glass-border);
+    border-radius: var(--radius-lg);
+    /* Match tool-card radius */
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.menu-item:hover {
+    background: linear-gradient(180deg, rgba(59, 130, 246, 0.1) 0%, rgba(30, 41, 59, 0.6) 100%);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.menu-item .icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.menu-item .label {
+    line-height: 1;
 }

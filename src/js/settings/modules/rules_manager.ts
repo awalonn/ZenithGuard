@@ -551,12 +551,14 @@ export class RulesManager {
         // SAFE: Explicit cast
         let rules = (this.settings[type] as string[]) || [];
 
-        if (rules.includes(value)) {
+        // Check for duplicates in object array
+        // SAFE: casting to any to handle rule structure
+        if ((rules as any[]).some((r: any) => r.value === value)) {
             this.showToast('This keyword already exists.', 'error');
             return;
         }
 
-        rules.push(value);
+        (rules as any[]).push({ value, enabled: true });
         // SAFE: Dynamic key set
         await chrome.storage.sync.set({ [type]: rules });
 

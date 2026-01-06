@@ -17,8 +17,9 @@ export async function updateTrackerList(force = false) {
     const { trackerListUrl } = await chrome.storage.sync.get('trackerListUrl') as { trackerListUrl?: string };
 
     if (!trackerListUrl || trackerListUrl.includes('YOUR_USERNAME')) {
-        console.warn("ZenithGuard: Tracker list URL is not configured. Privacy Insights will be limited to the hard-coded fallback list.");
-        return; // Don't fetch if the URL isn't configured
+        console.warn("ZenithGuard: Tracker list URL is not configured. Using local fallback.");
+        await updateFromLocal(force);
+        return;
     }
 
     if (!force) {
@@ -53,7 +54,38 @@ export async function updateTrackerList(force = false) {
         console.log("ZenithGuard: Dynamic tracker list updated successfully.");
 
     } catch (error) {
-        console.error("ZenithGuard: Failed to update dynamic tracker list.", error);
+        console.error("ZenithGuard: Failed to update dynamic tracker list. Using local fallback.", error);
+        await updateFromLocal(true); // Fallback to local
+    }
+}
+
+/**
+ * Fallback function to load tracker definitions from the local extension package.
+ */
+async function updateFromLocal(force = false) {
+    if (!force) {
+        const cached = await chrome.storage.local.get(TRACKER_LIST_CACHE_KEY) as { [key: string]: { list: any, lastUpdated: number } };
+        if (cached[TRACKER_LIST_CACHE_KEY] && (Date.now() - cached[TRACKER_LIST_CACHE_KEY].lastUpdated < CACHE_DURATION_MS)) {
+            return; // Cache is fresh
+        }
+    }
+
+    try {
+        const rulesUrl = chrome.runtime.getURL('rules/trackers.json');
+        const response = await fetch(rulesUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch local tracker definitions: ${response.statusText}`);
+        }
+        const dynamicList = await response.json();
+
+        await chrome.storage.local.set({
+            [TRACKER_LIST_CACHE_KEY]: {
+                list: dynamicList,
+                lastUpdated: Date.now()
+            }
+        });
+    } catch (error) {
+        console.error("ZenithGuard: Failed to load local fallback tracker definitions.", error);
     }
 }
 

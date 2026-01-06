@@ -12,6 +12,11 @@ import { CookieHandler } from './modules/CookieHandler.js';
     const cookieHandler = new CookieHandler();
     const youtubeProtector = YouTubeProtector.getInstance(); // Singleton
 
+    // --- Context Health Check ---
+    const isContextValid = () => {
+        return !!chrome.runtime?.id;
+    };
+
     const PROCESSING_TOAST_ID = 'zg-processing-toast';
     let isPerformanceModeEnabled = false;
 
@@ -50,6 +55,7 @@ import { CookieHandler } from './modules/CookieHandler.js';
     // --- Core Orchestration ---
     async function reapplyAllHidingRules(isInitialLoad = false) {
         try {
+            if (!isContextValid()) return;
             const domain = window.location.hostname;
             const settings = await chrome.storage.sync.get([
                 'customHidingRules', 'isCookieBannerHidingEnabled', 'isSelfHealingEnabled',
@@ -69,13 +75,27 @@ import { CookieHandler } from './modules/CookieHandler.js';
             } = settings;
 
 
-            if (!isProtectionEnabled || disabledSites.includes(domain)) {
-                cosmeticFilter.applyHidingRules([], 'custom');
-                cosmeticFilter.applyHidingRules([], 'filterList');
+            const isDomainWhitelisted = (current: string, whitelisted: string[]) => {
+                if (whitelisted.includes(current)) return true;
+                const parts = current.split('.');
+                for (let i = 1; i < parts.length - 1; i++) {
+                    const parent = parts.slice(i).join('.');
+                    if (whitelisted.includes(parent)) return true;
+                }
+                return false;
+            };
+
+            const isWhitelisted = isDomainWhitelisted(domain, disabledSites);
+            const isFullyEnabled = isProtectionEnabled && !isWhitelisted;
+            (window as any).ZenithGuard_ProtectionEnabled = isFullyEnabled;
+
+            if (!isFullyEnabled) {
+                cosmeticFilter.stop();
+                YouTubeProtector.getInstance().stop();
                 if (!isProtectionEnabled) {
                     console.log("ZenithGuard: Global protection is OFF.");
                 } else {
-                    console.log("ZenithGuard: Disabled for this site.");
+                    console.log(`ZenithGuard: Disabled for ${domain} (whitelisted).`);
                 }
                 return;
             }
@@ -98,20 +118,10 @@ import { CookieHandler } from './modules/CookieHandler.js';
                 cosmeticFilter.applyIframeSandboxing();
             }
 
-            // 3. Startup Tasks
-            if (isInitialLoad && !isPerformanceModeEnabled) {
-                // Self healing kept local for now or TODO moved to module
-                /* Temporarily disabling automatic AI triggers to preserve Gemini quota for v1.1.4 
-                if (isCookieBannerHidingEnabled) {
-                    cookieHandler.runAICookieHandler();
-                }
-                if (isSelfHealingEnabled) {
-                    runSelfHealingCheck(rulesForDomain, domain);
-                }
-                */
-            }
+            // 3. Startup Tasks (v2.4.0 Cleanup: AI triggers are managed via Message Handler)
 
             // 4. Remote Filter Lists
+            if (!isContextValid()) return;
             const response = await chrome.runtime.sendMessage({ type: 'GET_HIDING_RULES_FOR_DOMAIN', domain: domain });
             if (response && response.rules) {
                 cosmeticFilter.applyHidingRules(response.rules, 'filterList');
@@ -125,7 +135,7 @@ import { CookieHandler } from './modules/CookieHandler.js';
         }
     }
 
-    // --- Legacy / Interactive Logic (To be refactored further if needed) ---
+    // --- Legacy / Interactive Logic ---
 
     // NOTE: Self-healing still here as it depends on local 'runSelfHealingCheck' recursion 
     // and storage interaction similar to saveHidingRule but slightly different.

@@ -188,7 +188,17 @@ export async function getHidingRulesForDomain(domain: string): Promise<{ rules: 
         'filterLists', 'isPerformanceModeEnabled', 'disabledSites'
     ]) as { filterLists?: FilterList[], isPerformanceModeEnabled?: boolean, disabledSites?: string[] };
 
-    if (isPerformanceModeEnabled || disabledSites.includes(domain)) {
+    const isDomainWhitelisted = (current: string, whitelisted: string[]) => {
+        if (whitelisted.includes(current)) return true;
+        const parts = current.split('.');
+        for (let i = 1; i < parts.length - 1; i++) {
+            const parent = parts.slice(i).join('.');
+            if (whitelisted.includes(parent)) return true;
+        }
+        return false;
+    };
+
+    if (isPerformanceModeEnabled || isDomainWhitelisted(domain, disabledSites)) {
         return { rules: [] };
     }
 

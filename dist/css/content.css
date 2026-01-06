@@ -237,7 +237,7 @@ body.light-theme .zenithguard-breach-warning {
     line-height: 1.5;
 }
 
-.hidden {
+.zg-hidden {
     display: none !important;
 }
 

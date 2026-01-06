@@ -1,0 +1,103 @@
+/* whats_new.css */
+
+body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: sans-serif;
+    margin: 0;
+    padding: 2rem;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.header img {
+    width: 48px;
+    height: 48px;
+}
+
+.header h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin: 0;
+}
+
+.version-badge {
+    background-color: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 1rem;
+    font-weight: bold;
+    align-self: flex-end;
+    margin-left: 1rem;
+}
+
+.changelog h2 {
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.change-item {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.change-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: #34d399; /* green-400 */
+}
+
+.change-content h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.change-content p {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.btn-primary {
+    background-color: var(--accent-primary);
+    color: var(--accent-text);
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: filter 0.2s;
+}
+.btn-primary:hover {
+    filter: brightness(1.1);
+}

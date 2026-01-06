@@ -1,13 +1,14 @@
 // ai_handler.ts
 // AI-powered features using Google Gemini API
 import { GoogleGenAI, Type, GenerativeModel, SchemaType } from '../google-genai.js';
+import * as keepAlive from './keep_alive.js'; // NEW: Import Keep Alive
 
 // Configuration
 const MODEL_NAME = 'gemini-3-flash-preview';
 
 // Throttling state
 let lastAiRequestTime = 0;
-const GLOBAL_RPM_LIMIT_MS = 15000; // 15 seconds between ANY AI requests (max 4 RPM)
+const GLOBAL_RPM_LIMIT_MS = 8000; // 8 seconds (Allows ~7 requests/min, safe for manual use)
 
 // Screenshot quality settings
 const SCREENSHOT_QUALITY_HIGH = 50;  // For detailed analysis
@@ -245,6 +246,7 @@ async function performActionOnVisibleTab<T>(tabId: number, action: (tab: chrome.
 
 function safeJsonParse(text: string): any {
     try {
+        keepAlive.startKeepAlive(); // NEW: Start heartbeat
         if (!text) return {};
         // Clean markdown code blocks if present
         const cleaned = text.replace(/```json\n?|\n?```/g, '').trim();
@@ -272,7 +274,7 @@ function handleCommonErrors(error: unknown, context: string): { error: string } 
         return { error: 'TAB_CLOSED' };
     }
 
-    console.error(`ZenithGuard ${context} Error:`, msg);
+    console.error(`ZenithGuard ${context} Error: `, msg);
     return { error: msg };
 }
 
@@ -298,11 +300,10 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
                 .slice(0, MAX_NETWORK_LOG_ENTRIES);
 
             const prompt = `Analyze the provided webpage screenshot and network log for privacy threats, visual annoyances, and manipulative "dark patterns".
-            - Network log contains blocked third-party tracking scripts.
-            - The user wants to block ads, trackers, popups, and other intrusive elements.
+            - Network log contains ALREADY BLOCKED third-party tracking scripts.
+            - The user wants to understand WHY these were blocked.
             - Identify distinct visual elements that are likely ads, banners, or annoyances. For each, provide a UNIQUE and ROBUST CSS selector.
-            - Identify network requests that are clearly for tracking or advertising.
-            - Identify network requests that match common heuristic patterns for tracking (e.g., contains '/track.js', 'analytics', '/beacon').
+            - For network requests: Confirm they are tracking/advertising. Label them as "Verified Blocked Threat". Do NOT suggest "Block Domain" as they are already blocked.
             - Identify manipulative UI "dark patterns" like Confirm-shaming (e.g., "No, I don't want to save money"), Roach Motel (easy to sign up, hard to cancel), Hidden Costs, or forced continuity.
             - Be concise. Focus on actionable items. Do not suggest blocking core site functionality.`;
 
@@ -322,7 +323,7 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
 
             const analysisPromise = ai.models.generateContent({
                 model: MODEL_NAME,
-                contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }, { text: `Network Log:\n${filteredLog.join('\n')}` }] },
+                contents: { parts: [{ text: prompt }, { inlineData: { mimeType: 'image/jpeg', data: base64Screenshot } }, { text: `Network Log: \n${filteredLog.join('\n')}` }] },
                 config: { responseMimeType: 'application/json', responseSchema: responseSchema as unknown as SchemaType, temperature: AI_TEMPERATURE }
             });
 
@@ -352,7 +353,11 @@ export async function analyzePage(tabId: number, pageUrl: string, networkLog: Ne
         return { result: resultJson };
 
     } catch (error) {
-        return handleCommonErrors(error, "AI Analyzer");
+        keepAlive.stopKeepAlive(); // NEW: Stop heartbeat on error
+        const handled = handleCommonErrors(error, "AI Analyzer");
+        return { error: handled.error || "Analysis failed." };
+    } finally {
+        keepAlive.stopKeepAlive(); // NEW: Verify stop
     }
 }
 
@@ -392,7 +397,8 @@ export async function handleHideElementWithAI(description: string, context: Sele
         });
         return resultData;
     } catch (error) {
-        return handleCommonErrors(error, "AI Hider");
+        const handled = handleCommonErrors(error, "AI Hider");
+        return { error: handled.error };
     }
 }
 
@@ -423,8 +429,11 @@ export async function handleSummarizePrivacyPolicy(policyUrl: string): Promise<S
         return safeJsonParse(aiResponse.text);
 
     } catch (error) {
-        console.error("ZenithGuard: Failed to summarize privacy policy:", error);
-        return { error: (error as Error).message };
+        keepAlive.stopKeepAlive(); // NEW: Stop heartbeat on error
+        console.error("ZenithGuard: AI Analysis failed", error);
+        return { error: (error as Error).message || "Analysis failed." };
+    } finally {
+        keepAlive.stopKeepAlive(); // NEW: Verify stop
     }
 }
 
@@ -460,7 +469,8 @@ export async function handleSelfHealRule(brokenSelector: string, tabId: number, 
         });
         return resultData;
     } catch (error) {
-        return handleCommonErrors(error, "Self-Heal");
+        const handled = handleCommonErrors(error, "Self-Heal");
+        return { error: handled.error };
     }
 }
 
@@ -528,7 +538,8 @@ export async function handleDefeatAdblockWall(tabId: number, onProgress?: (msg: 
         });
         return { selectors };
     } catch (error) {
-        return handleCommonErrors(error, "Adblock Wall Defeat");
+        const handled = handleCommonErrors(error, "Adblock Wall Defeat");
+        return { error: handled.error };
     }
 }
 
@@ -583,6 +594,7 @@ export async function handleCookieConsent(tabId: number): Promise<CookieConsentR
         if (err.message && err.message.includes("could not identify a consent button")) {
             return { result: { selector: null, action: null } };
         }
-        return handleCommonErrors(error, "Cookie Consent");
+        const handled = handleCommonErrors(error, "Cookie Consent");
+        return { error: handled.error };
     }
 }

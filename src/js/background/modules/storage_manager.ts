@@ -33,11 +33,16 @@ export async function migrateOldRules() {
         operations.push(chrome.storage.sync.set({ customHidingRules }));
     }
     // --- NEW: Migrate Placeholder URLs ---
-    const urlSettings = await chrome.storage.sync.get(['trackerListUrl', 'youtubeRulesUrl']) as { trackerListUrl?: string; youtubeRulesUrl?: string };
+    const { trackerListUrl, youtubeRulesUrl } = await chrome.storage.sync.get(['trackerListUrl', 'youtubeRulesUrl']) as { trackerListUrl?: string; youtubeRulesUrl?: string };
     let urlsNeedUpdate = false;
+    const urlSettings: { trackerListUrl?: string; youtubeRulesUrl?: string } = {};
 
-    if (urlSettings.trackerListUrl && urlSettings.trackerListUrl.includes('YOUR_USERNAME')) {
-        urlSettings.trackerListUrl = 'https://gist.githubusercontent.com/awalonn/6d72d652200fe4aa16fd7cba3c47e573/raw/c39c25acc9ca31f99f1ae6dbc792024263b5e2c7/trackers.json';
+    // MIGRATION: Remove hashes from Gist URLs to allow "Always Latest" sync
+    const LATEST_TRACKERS_URL = 'https://gist.githubusercontent.com/awalonn/6d72d652200fe4aa16fd7cba3c47e573/raw/trackers.json';
+    const LATEST_YOUTUBE_URL = 'https://gist.githubusercontent.com/awalonn/446737a854b3b3016b6b4ab9bd35e32b/raw/youtube_rules.json';
+
+    if (!trackerListUrl || trackerListUrl.includes('YOUR_USERNAME') || trackerListUrl.includes('/raw/c39c25acc9ca31f99f1ae6dbc792024263b5e2c7/')) {
+        urlSettings.trackerListUrl = LATEST_TRACKERS_URL;
         urlsNeedUpdate = true;
     }
 
@@ -61,13 +66,25 @@ export async function migrateOldRules() {
         operations.push(chrome.storage.sync.set({ heuristicKeywords }));
     }
 
-    if (urlSettings.youtubeRulesUrl && urlSettings.youtubeRulesUrl.includes('YOUR_USERNAME')) {
-        urlSettings.youtubeRulesUrl = 'https://gist.githubusercontent.com/awalonn/446737a854b3b3016b6b4ab9bd35e32b/raw/29c7e5c4bdb9b8f3381f14d585005fde328725d4/youtube_rules.json';
+    if (!youtubeRulesUrl || youtubeRulesUrl.includes('YOUR_USERNAME') || youtubeRulesUrl.includes('/raw/29c7e5c4bdb9b8f3381f14d585005fde328725d4/')) {
+        urlSettings.youtubeRulesUrl = LATEST_YOUTUBE_URL;
         urlsNeedUpdate = true;
     }
 
     if (urlsNeedUpdate) {
         operations.push(chrome.storage.sync.set(urlSettings));
+    }
+
+    // --- NEW: Remove redundant EasyList from Subscriptions (v2.3.0) ---
+    const { filterLists = [] } = await chrome.storage.sync.get('filterLists') as { filterLists?: any[] };
+    const cleanFilterLists = filterLists.filter(list =>
+        !list.url?.includes('easylist.to/easylist/easylist.txt') &&
+        list.id !== 'easylist'
+    );
+
+    if (cleanFilterLists.length !== filterLists.length) {
+        console.log("ZenithGuard: Removing redundant EasyList from dynamic subscriptions (now handled by built-in).");
+        operations.push(chrome.storage.sync.set({ filterLists: cleanFilterLists }));
     }
 
     if (operations.length > 0) {
@@ -116,7 +133,7 @@ export async function initializeSettingsIfNeeded() {
         isBreachWarningEnabled: true,
         theme: 'dark',
         isProtectionEnabled: true,
-        filterLists: [{ url: "https://easylist.to/easylist/easylist.txt", enabled: true, status: 'new' }],
+        filterLists: [], // EasyList removed here as it's built-in via subscription_presets.js
         defaultBlocklist: DEFAULT_BLOCKLIST.map(r => ({ value: r.value, enabled: r.enabled })),
         heuristicKeywords: HEURISTIC_KEYWORDS.map(kw => ({ value: kw, enabled: true })),
         networkBlocklist: [],
@@ -124,6 +141,8 @@ export async function initializeSettingsIfNeeded() {
         heuristicAllowlist: [],
         isolationModeSites: [],
         forgetfulSites: [],
+        trackerListUrl: 'https://gist.githubusercontent.com/awalonn/6d72d652200fe4aa16fd7cba3c47e573/raw/trackers.json',
+        youtubeRulesUrl: 'https://gist.githubusercontent.com/awalonn/446737a854b3b3016b6b4ab9bd35e32b/raw/youtube_rules.json',
         settingsInitialized: true
     });
 }

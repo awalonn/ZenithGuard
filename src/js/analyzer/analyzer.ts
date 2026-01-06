@@ -274,14 +274,20 @@ document.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = Object.entries(grouped).map(([category, items]) => `
             <div class="threat-category">
                 <h3 class="category-header" style="border-color: ${category === 'Ads' ? '#ef4444' : '#f97316'};">${category}</h3>
-                ${items.map(threat => `
+                ${items.map(threat => {
+            const isBlocked = (threat.category && threat.category.includes('Verified Blocked')) || (threat.reason && threat.reason.includes('Verified Blocked'));
+            return `
                     <div class="threat-entry">
                         <div class="threat-url">${escapeHtml(threat.url)}</div>
                         <div class="threat-reason">${escapeHtml(threat.reason || '')}</div>
                         <div class="threat-actions">
-                            <button class="threat-action-btn" data-ruletype="networkBlocklist" data-value="${new URL(threat.url).hostname}">Block Domain</button>
+                            ${isBlocked ?
+                    '<span class="status-badge" style="background:rgba(74, 222, 128, 0.2); color:#4ade80; padding:4px 8px; border-radius:4px; font-size:12px;">✅ Blocked</span>' :
+                    `<button class="threat-action-btn" data-ruletype="networkBlocklist" data-value="${new URL(threat.url).hostname}">Block Domain</button>`
+                }
                         </div>
-                    </div>`).join('')}
+                    </div>`;
+        }).join('')}
             </div>`).join('');
     }
 

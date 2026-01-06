@@ -1,14 +1,22 @@
+/**
+ * BACKGROUND.TS - ZENITHGUARD SERVICE WORKER ENTRY POINT
+ * 
+ * DEVELOPER NOTE: When adding new imports, ALWAYS include the ".js" extension 
+ * (e.g., import * from './modules/rule_engine.js'). 
+ * Chrome's Service Worker ESM implementation requires explicit extensions.
+ */
 import * as ruleEngine from './modules/rule_engine.js';
 import * as storageManager from './modules/storage_manager.js';
 import * as filterListHandler from './modules/filter_list_handler.js';
 import * as ai from './modules/ai_handler.js';
+import * as keepAlive from './modules/keep_alive.js'; // NEW: Keep Alive Module
 import { updateMalwareList } from './modules/malware_protection.js';
 import { updateYouTubeRules } from './modules/youtube_rules_updater.js';
 import { updateTrackerList } from './modules/tracker_list_updater.js';
 import * as focusMode from './modules/focus_mode_manager.js';
 import { initializeNetworkLogger } from './modules/network_logger.js';
 import { createContextMenus, initializeContextMenuListeners } from './modules/context_menu_manager.js';
-import { initializeTabManager, injectContentScripts } from './modules/tab_manager.js';
+import { initializeTabManager } from './modules/tab_manager.js';
 import { initializeMessageHandler } from './modules/message_handler.js';
 import { PrivacyManager } from './modules/privacy_manager.js';
 
@@ -138,3 +146,6 @@ chrome.commands.onCommand.addListener(async (command) => {
         }
     }
 });
+
+// NEW: Global Keep-Alive for critical background tasks (optional global trigger)
+// Currently controlled by ai_handler explicitly.

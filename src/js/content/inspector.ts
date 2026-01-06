@@ -1,4 +1,5 @@
 // src/js/content/inspector.ts
+import { tamperDetector } from './modules/tamper_detector.js'; // NEW: Import Tamper Detector
 
 interface NetworkRequest {
     url: string;
@@ -92,9 +93,32 @@ window.ZenithGuardInspector = (() => {
         `;
         document.body.appendChild(highlight);
         document.body.appendChild(hud);
+
+        // NEW: Protect UI
+        tamperDetector.protect('zg-inspector-highlight', () => { if (isActive) createUI(); }); // Simple re-creation might duplicate if only one was removed? createUI handles logic? No.
+        // Better:
+        // tamperDetector.protect('zg-inspector-highlight', () => { if(isActive && !document.getElementById('zg-inspector-highlight')) document.body.appendChild(highlight!); });
+        // Actually, simpler:
+        tamperDetector.protect('zg-inspector-hud', () => {
+            if (isActive && !document.getElementById('zg-inspector-hud')) {
+                console.log("Restoring Inspector HUD...");
+                if (hud) document.body.appendChild(hud);
+                else createUI();
+            }
+        });
+        tamperDetector.protect('zg-inspector-highlight', () => {
+            if (isActive && !document.getElementById('zg-inspector-highlight')) {
+                if (highlight) document.body.appendChild(highlight);
+                else createUI();
+            }
+        });
     }
 
     function destroyUI() {
+        // NEW: Unprotect before removing!
+        tamperDetector.unprotect('zg-inspector-hud');
+        tamperDetector.unprotect('zg-inspector-highlight');
+
         hud?.remove();
         highlight?.remove();
         highlight = null;

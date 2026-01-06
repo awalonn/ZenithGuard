@@ -6,6 +6,7 @@ export class YouTubeProtector {
     private observer: MutationObserver | null = null;
     private debounceTimeout: ReturnType<typeof setTimeout> | null = null;
     public reapplyCallback: ((isInitial: boolean) => Promise<void>) | null = null;
+    private isContextValid = () => !!chrome.runtime?.id;
 
     private constructor() { }
 
@@ -39,8 +40,13 @@ export class YouTubeProtector {
         this.hideAdElements();
 
         this.observer = new MutationObserver((mutations) => {
+            if (!this.isContextValid()) {
+                this.stop();
+                return;
+            }
             if (this.debounceTimeout) clearTimeout(this.debounceTimeout);
             this.debounceTimeout = setTimeout(async () => {
+                if (!this.isContextValid()) return;
                 if (this.reapplyCallback) await this.reapplyCallback(false);
                 this.hideAdElements();
                 this.injectInterceptor();
@@ -54,6 +60,7 @@ export class YouTubeProtector {
     }
 
     private injectInterceptor() {
+        if (!this.isContextValid()) return;
         if (document.getElementById('zenithguard-yt-interceptor')) return;
         try {
             const script = document.createElement('script');
@@ -68,8 +75,10 @@ export class YouTubeProtector {
             script.onerror = (e) => {
                 console.error('ZenithGuard: Failed to load yt_interceptor.js', e);
             };
-        } catch (e) {
-            console.error('ZenithGuard: Error injecting yt_interceptor:', e);
+        } catch (e: any) {
+            if (!String(e.message).includes('context invalidated')) {
+                console.error('ZenithGuard: Error injecting yt_interceptor:', e);
+            }
         }
     }
 
@@ -116,7 +125,18 @@ export class YouTubeProtector {
     }
 
     private startNuclearSkipper() {
-        setInterval(() => {
+        const intervalId = setInterval(() => {
+            if (!this.isContextValid()) {
+                console.log("ZenithGuard: Extension updated. Stopping legacy nuclear skipper.");
+                clearInterval(intervalId);
+                this.stop();
+                return;
+            }
+            // Check if protection is disabled or site is whitelisted before running
+            if (!(window as any).ZenithGuard_ProtectionEnabled) return;
+
+            // ... rest of the logic
+
             // 1. Aggressively click ANY skip button variant
             const skipSelectors = [
                 '.ytp-ad-skip-button',
@@ -167,5 +187,18 @@ export class YouTubeProtector {
                 }
             }
         }, 25); // Poll every 25ms instead of 50ms for faster response
+    }
+
+    public stop() {
+        if (this.observer) {
+            this.observer.disconnect();
+            this.observer = null;
+        }
+        if (this.debounceTimeout) clearTimeout(this.debounceTimeout);
+
+        const styleSheet = document.getElementById('zenithguard-youtube-cosmetic-styles');
+        if (styleSheet) styleSheet.remove();
+
+        console.log("ZenithGuard: YouTube Protector Stopped.");
     }
 }

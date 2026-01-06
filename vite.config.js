@@ -76,6 +76,7 @@ export default defineConfig({
                     }
                 },
                 { src: 'src/icons', dest: '.' },
+                { src: 'src/rules', dest: '.' },
                 { src: 'src/rulesets', dest: '.' },
                 { src: 'src/_locales', dest: '.' },
                 { src: 'src/css', dest: '.' },

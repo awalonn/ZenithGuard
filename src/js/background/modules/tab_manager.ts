@@ -40,7 +40,3 @@ export function initializeTabManager() {
     });
 }
 
-export async function injectContentScripts(tabId: number, tabUrl: string) {
-    // Deprecated: Content scripts are now injected via manifest.json
-    return;
-}

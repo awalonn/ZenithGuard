@@ -30,7 +30,7 @@ import * as focusMode from './focus_mode_manager.js';
 
 
 const lastAnalysisByTab: { [key: number]: number } = {};
-const ANALYSIS_COOLDOWN_MS = 20_000;
+const ANALYSIS_COOLDOWN_MS = 10_000;
 
 // --- Debounce Utility ---
 let applyRulesTimeout: any;

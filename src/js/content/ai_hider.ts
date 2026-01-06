@@ -63,7 +63,7 @@ window.ZenithGuardAIHider = (() => {
             </div>
 
             <!-- Preview State -->
-            <div id="zenithguard-ai-hider-preview-view" class="hidden">
+            <div id="zenithguard-ai-hider-preview-view" class="zg-hidden">
                 <input type="text" id="zenithguard-ai-hider-selector-display" readonly>
                 <div id="zenithguard-ai-hider-preview-actions">
                     <button id="zenithguard-ai-hider-discard" class="zenithguard-ai-hider-btn">Discard</button>
@@ -75,7 +75,7 @@ window.ZenithGuardAIHider = (() => {
             </div>
             
             <!-- Error State -->
-            <div id="zenithguard-ai-hider-error-view" class="hidden">
+            <div id="zenithguard-ai-hider-error-view" class="zg-hidden">
                 <p id="zenithguard-ai-hider-error-message"></p>
                 <button id="zenithguard-ai-hider-try-again" class="zenithguard-ai-hider-btn">Try Again</button>
             </div>
@@ -119,20 +119,20 @@ window.ZenithGuardAIHider = (() => {
 
     function setViewState(state: 'input' | 'preview' | 'error') {
         if (!uiElements) return;
-        uiElements.inputView.classList.add('hidden');
-        uiElements.previewView.classList.add('hidden');
-        uiElements.errorView.classList.add('hidden');
+        uiElements.inputView.classList.add('zg-hidden');
+        uiElements.previewView.classList.add('zg-hidden');
+        uiElements.errorView.classList.add('zg-hidden');
 
         if (state === 'input') {
             uiElements.title.textContent = 'Describe Element to Hide';
-            uiElements.inputView.classList.remove('hidden');
+            uiElements.inputView.classList.remove('zg-hidden');
             uiElements.textarea.focus();
         } else if (state === 'preview') {
             uiElements.title.textContent = 'Generated Selector';
-            uiElements.previewView.classList.remove('hidden');
+            uiElements.previewView.classList.remove('zg-hidden');
         } else if (state === 'error') {
             uiElements.title.textContent = 'An Error Occurred';
-            uiElements.errorView.classList.remove('hidden');
+            uiElements.errorView.classList.remove('zg-hidden');
         }
     }
 

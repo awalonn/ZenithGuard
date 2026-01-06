@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ZenithGuard",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "description": "Advanced AI-powered Ad Blocker and Privacy Guard",
   "default_locale": "en",
   "permissions": [
@@ -71,11 +71,11 @@
         "src/pages/analyzer.html",
         "src/pages/logger.html",
         "js/yt_interceptor.js",
-        "js/content/inspector.js",
-        "js/content/zapper.js",
-        "js/content/ai_hider.js",
+        "js/inspector.js",
+        "js/zapper.js",
+        "js/ai_hider.js",
         "js/policy_finder.js",
-        "js/utils/toast.js"
+        "js/toast.js"
       ],
       "matches": [
         "<all_urls>"

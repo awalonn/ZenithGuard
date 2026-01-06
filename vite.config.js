@@ -57,9 +57,11 @@ export default defineConfig({
                         // Fix Web Accessible Resources Paths
                         const resources = manifest.web_accessible_resources[0].resources;
                         manifest.web_accessible_resources[0].resources = resources.map(r => {
-                            // The source paths in manifest.json are relative to src/ (e.g. js/content/yt_interceptor.js)
-                            if (r === 'js/content/yt_interceptor.js') return 'js/yt_interceptor.js';
-                            if (r === 'js/content/policy_finder.js') return 'js/policy_finder.js';
+                            // Flatten JS paths from src/js/content/ and src/js/utils/
+                            if (r.startsWith('js/content/') || r.startsWith('js/utils/')) {
+                                const parts = r.split('/');
+                                return 'js/' + parts[parts.length - 1];
+                            }
                             if (r.startsWith('pages/')) return 'src/' + r;
                             return r;
                         });

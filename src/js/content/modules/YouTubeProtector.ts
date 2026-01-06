@@ -59,26 +59,20 @@ export class YouTubeProtector {
         }
     }
 
-    private async injectInterceptor() {
+    private injectInterceptor() {
         if (!this.isContextValid()) return;
         if (document.getElementById('zenithguard-yt-interceptor')) return;
 
         try {
-            const scriptUrl = chrome.runtime.getURL('js/yt_interceptor.js');
-
-            // USE FETCH + TEXT_CONTENT TO BYPASS CSP ON CHROME-EXTENSION:// SOURCES
-            const response = await fetch(scriptUrl);
-            const scriptCode = await response.text();
-
             const script = document.createElement('script');
             script.id = 'zenithguard-yt-interceptor';
-            script.textContent = scriptCode + '\n//# sourceURL=' + scriptUrl;
+            script.src = chrome.runtime.getURL('js/yt_interceptor.js');
 
             (document.head || document.documentElement).appendChild(script);
-            console.log('ZenithGuard: YouTube interceptor injected successfully via textContent.');
-
-            // We can remove it immediately if the script is IIFE and doesn't need to stay in DOM
-            script.remove();
+            script.onload = () => {
+                console.log('ZenithGuard: YouTube interceptor injected successfully via src.');
+                script.remove();
+            };
         } catch (e: any) {
             if (!String(e.message).includes('context invalidated')) {
                 console.error('ZenithGuard: Error injecting yt_interceptor:', e);

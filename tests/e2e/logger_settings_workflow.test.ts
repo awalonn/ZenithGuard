@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer, { type Browser } from "puppeteer";
+import { packagedExtensionLaunchArgs } from "./chrome_launch";
 import { listenOnSafeLocalhost } from "./http_server";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -51,14 +52,7 @@ describe("packaged Logger to Settings workflow", () => {
                 headless: "new",
                 userDataDir: profileDir,
                 ignoreDefaultArgs: ["--disable-extensions", "--disable-component-extensions-with-background-pages"],
-                args: [
-                    `--disable-extensions-except=${extensionPath}`,
-                    `--load-extension=${extensionPath}`,
-                    "--no-first-run",
-                    "--no-default-browser-check",
-                    "--disable-features=Translate,OptimizationHints",
-                    "--window-size=1365,900",
-                ],
+                args: packagedExtensionLaunchArgs(extensionPath),
                 defaultViewport: { width: 1365, height: 900 },
             });
 

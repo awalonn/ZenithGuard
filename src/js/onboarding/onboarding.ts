@@ -1,45 +1,48 @@
-// src/js/onboarding/onboarding.ts
-import { AppSettings } from '../types.js';
+import { closeCurrentTabOrWindow, openOptionsPage } from "../shared/browser";
+import { notifyApiKeyUpdated } from "../shared/runtime_messages";
+import { getSync, setSync } from "../shared/storage_api";
 
-document.addEventListener('DOMContentLoaded', async () => {
-    const apiKeyInput = document.getElementById('api-key-input') as HTMLInputElement | null;
-    const saveApiKeyBtn = document.getElementById('save-api-key-btn') as HTMLButtonElement | null;
-    const initialSetupDiv = document.getElementById('initial-setup') as HTMLElement | null;
-    const successDiv = document.getElementById('success-message') as HTMLElement | null;
-    const getStartedBtn = document.getElementById('get-started-btn') as HTMLElement | null;
+document.addEventListener("DOMContentLoaded", async () => {
+    const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement | null;
+    const saveButton = document.getElementById("save-api-key-btn") as HTMLButtonElement | null;
+    const skipButton = document.getElementById("skip-ai-setup-btn") as HTMLButtonElement | null;
+    const initialSetup = document.getElementById("initial-setup");
+    const successMessage = document.getElementById("success-message");
+    const getStartedButton = document.getElementById("get-started-btn") as HTMLButtonElement | null;
 
-    // Apply theme
-    const state = await chrome.storage.sync.get('theme') as { theme?: string };
-    if (state.theme === 'light') {
-        document.body.classList.add('light-theme');
+    const { theme } = await getSync<{ theme?: string }>("theme");
+    if (theme === "light") {
+        document.body.classList.add("light-theme");
     }
 
-    // --- Event Listeners ---
-    if (saveApiKeyBtn && apiKeyInput) {
-        saveApiKeyBtn.addEventListener('click', async () => {
+    if (saveButton && apiKeyInput) {
+        saveButton.addEventListener("click", async () => {
             const apiKey = apiKeyInput.value.trim();
-            if (apiKey) {
-                saveApiKeyBtn.disabled = true;
-                saveApiKeyBtn.textContent = 'Saving...';
-
-                await chrome.storage.sync.set({ geminiApiKey: apiKey } as Partial<AppSettings>);
-
-                if (initialSetupDiv) initialSetupDiv.classList.add('hidden');
-                if (successDiv) successDiv.classList.remove('hidden');
-            } else {
-                alert('Please enter a valid API key.');
+            if (!apiKey) {
+                alert("Please enter a valid API key.");
+                return;
             }
+
+            saveButton.disabled = true;
+            saveButton.textContent = "Saving...";
+            await setSync({ geminiApiKey: apiKey });
+            notifyApiKeyUpdated();
+            initialSetup?.classList.add("hidden");
+            successMessage?.classList.remove("hidden");
         });
     }
 
-    if (getStartedBtn) {
-        getStartedBtn.addEventListener('click', () => {
-            // Open the settings page
-            chrome.runtime.openOptionsPage();
-            // Close the current onboarding tab
-            chrome.tabs.getCurrent(tab => {
-                if (tab && tab.id) chrome.tabs.remove(tab.id);
-            });
+    if (getStartedButton) {
+        getStartedButton.addEventListener("click", async () => {
+            await openOptionsPage();
+            await closeCurrentTabOrWindow();
+        });
+    }
+
+    if (skipButton) {
+        skipButton.addEventListener("click", async () => {
+            await openOptionsPage();
+            await closeCurrentTabOrWindow();
         });
     }
 });

@@ -1,88 +1,41 @@
-import { defineConfig } from 'vite';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
-import path from 'path';
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vite";
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import { viteStaticCopy } from "vite-plugin-static-copy";
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+const pageInputs = {
+    "src/pages/popup": path.resolve(rootDir, "src/pages/popup.html"),
+    "src/pages/settings": path.resolve(rootDir, "src/pages/settings.html"),
+    "src/pages/analyzer": path.resolve(rootDir, "src/pages/analyzer.html"),
+    "src/pages/logger": path.resolve(rootDir, "src/pages/logger.html"),
+    "src/pages/whats_new": path.resolve(rootDir, "src/pages/whats_new.html"),
+    "src/pages/blocked": path.resolve(rootDir, "src/pages/blocked.html"),
+    "src/pages/focus_blocked": path.resolve(rootDir, "src/pages/focus_blocked.html"),
+    "src/pages/welcome": path.resolve(rootDir, "src/pages/welcome.html"),
+    "src/pages/onboarding": path.resolve(rootDir, "src/pages/onboarding.html"),
+};
 
 export default defineConfig({
-    build: {
-        outDir: 'dist',
-        emptyOutDir: true,
-        rollupOptions: {
-            input: {
-                // Background
-                // Background
-                background: path.resolve(__dirname, 'src/js/background/background.ts'),
-
-                // Content Scripts (Bundled) - Moved to vite.content.config.js
-                // content_bundle: path.resolve(__dirname, 'src/js/content/content-bundle.ts'),
-
-                // Pages
-                popup: path.resolve(__dirname, 'src/pages/popup.html'),
-                settings: path.resolve(__dirname, 'src/pages/settings.html'),
-                welcome: path.resolve(__dirname, 'src/pages/welcome.html'),
-                onboarding: path.resolve(__dirname, 'src/pages/onboarding.html'),
-                whats_new: path.resolve(__dirname, 'src/pages/whats_new.html'),
-                logger: path.resolve(__dirname, 'src/pages/logger.html'),
-                analyzer: path.resolve(__dirname, 'src/pages/analyzer.html'),
-
-                // Blocked Page
-                blocked: path.resolve(__dirname, 'src/pages/blocked.html'),
-                focus_blocked: path.resolve(__dirname, 'src/pages/focus_blocked.html'),
-
-                // Dynamic Scripts (Must be compiled from TS)
-                yt_interceptor: path.resolve(__dirname, 'src/js/content/yt_interceptor.ts'),
-                policy_finder: path.resolve(__dirname, 'src/js/content/policy_finder.ts'),
-            },
-            output: {
-                entryFileNames: 'js/[name].js',
-                chunkFileNames: 'js/[name]-[hash].js',
-                assetFileNames: 'assets/[name]-[hash].[ext]',
-            },
-        },
-    },
     plugins: [
+        svelte(),
         viteStaticCopy({
             targets: [
-                {
-                    src: 'src/manifest.json',
-                    dest: '.',
-                    transform: (content) => {
-                        const manifest = JSON.parse(content);
-
-                        // Fix Background Script Path
-                        manifest.background.service_worker = 'js/background.js';
-
-                        // Fix Content Script Path
-                        manifest.content_scripts[0].js = ['js/content_bundle.js'];
-
-                        // Fix Web Accessible Resources Paths
-                        const resources = manifest.web_accessible_resources[0].resources;
-                        manifest.web_accessible_resources[0].resources = resources.map(r => {
-                            // Flatten JS paths from src/js/content/ and src/js/utils/
-                            if (r.startsWith('js/content/') || r.startsWith('js/utils/')) {
-                                const parts = r.split('/');
-                                return 'js/' + parts[parts.length - 1];
-                            }
-                            if (r.startsWith('pages/')) return 'src/' + r;
-                            return r;
-                        });
-
-                        // Fix Action and Options Page Paths
-                        if (manifest.action && manifest.action.default_popup) {
-                            manifest.action.default_popup = 'src/' + manifest.action.default_popup;
-                        }
-                        if (manifest.options_page) {
-                            manifest.options_page = 'src/' + manifest.options_page;
-                        }
-
-                        return JSON.stringify(manifest, null, 2);
-                    }
-                },
-                { src: 'src/icons', dest: '.' },
-                { src: 'src/rules', dest: '.' },
-                { src: 'src/rulesets', dest: '.' },
-                { src: 'src/_locales', dest: '.' },
-                { src: 'src/css', dest: '.' },
-            ]
+                { src: "manifest.json", dest: "." },
+                { src: "css/**/*", dest: "css" },
+                { src: "icons/**/*", dest: "icons" },
+                { src: "rules/**/*", dest: "rules" },
+                { src: "_locales/**/*", dest: "_locales" },
+            ],
         }),
     ],
+    build: {
+        outDir: "dist",
+        emptyOutDir: true,
+        rollupOptions: {
+            input: pageInputs,
+        },
+    },
 });

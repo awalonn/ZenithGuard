@@ -1,344 +1,1084 @@
+﻿import { getLocal, getSync, setLocal, setSync } from "../../shared/storage_api";
+import { findMatchingRecordEntry } from "../../shared/hostname_matching";
+import { normalizeCustomHidingRuleBuckets } from "../../shared/site_bucket_maps";
+import type { ToastOptions } from "./toast";
 
-import { HidingRule } from '../../types.js'; // Adjust path if needed
-import { tamperDetector } from './tamper_detector.js'; // NEW: Import Tamper Detector
+export type HidingRule = {
+    value: string;
+    enabled?: boolean;
+    lastHealed?: number;
+    lastHealAttempt?: number;
+};
+
+export type WallFixSelectors = {
+    overlaySelector: string;
+    scrollSelector?: string;
+    contentUnlockSelector?: string;
+};
+
+export type WallFixApplyResult = {
+    overlayMatchCount: number;
+    contentUnlockMatchCount: number;
+};
+
+export type HidingRuleActivity = {
+    tool: string;
+    title?: string;
+    message?: string;
+    tone?: "info" | "success" | "error";
+};
+
+type CleanupCollapseResult = {
+    count: number;
+    hints: string[];
+};
+
+type CosmeticCleanupSummary = {
+    count: number;
+    latestHint?: string;
+    updatedAt: number;
+    pageUrl?: string;
+};
+
+export function findMatchingRuleBucketKey<T>(hostname: string, entries: Record<string, T> | undefined): string | null {
+    return findMatchingRecordEntry(entries, hostname)?.key || null;
+}
+
+function normalizeActivityHostname(hostname: string): string {
+    const normalized = String(hostname || "").trim().toLowerCase();
+    return normalized.startsWith("www.") ? normalized.slice(4) : normalized;
+}
+
+const BUILT_IN_AD_SLOT_CLEANUP_SELECTORS = [
+    ".mgid-display-box",
+    '[class*="adskeeper"]',
+    '[id*="M741130"]',
+    ".mgbox",
+    ".mg-display-box",
+    '[id^="MarketGid"]',
+    '[id^="adskeeper"]',
+    "div[data-ads-id]",
+    ".adskeeper-container",
+    ".freestar-ad",
+    'ins.adsbygoogle[data-ad-status="unfilled"]',
+    "ins.adsbygoogle:empty",
+    'iframe[id^="google_ads_iframe"]',
+    'iframe[name^="google_ads_iframe"]',
+    'iframe[src*="doubleclick.net"]',
+    'iframe[src*="googlesyndication.com"]',
+    'iframe[src*="googletagservices.com"]',
+    'iframe[src*="googleads."]',
+    'div[id^="google_ads_iframe"]',
+    '[id^="google_ads_iframe_"]',
+    '[id^="aswift_"]',
+    '[id^="google_ads_frame"]',
+    ".adsbygoogle-noablate",
+    '[data-ad-status="unfilled"]',
+    ".google-auto-placed",
+    "[data-ad-client]",
+    "[data-ad-slot]",
+    '[id^="div-gpt-ad"]',
+    '[id*="div-gpt-ad-"]',
+    '[id^="ad_page_"]',
+    ".responsive-sda.ad-center",
+    '[class*="mm-ads-"]',
+    ".header-and-footer--banner-ad",
+    ".adsninja-ad-zone",
+    '[id^="dynamically-injected-refresh-ad-zone-"]',
+    '[id^="ad-zone-container-adsninja-ad-unit-"]',
+    '[id^="ad-zone-size-container-adsninja-ad-unit-"]',
+    '.ad-zone[class*="ad-zone-content-"]',
+    '.ad-zone[class*="ad-zone-footer-"]',
+    ".side-ad-trail",
+    ".ad-wrapper.pgQSsticky",
+    ".zad.billboard",
+    ".zad.halfpage",
+    ".ad-container.desktop",
+    ".ad.gam",
+    ".ad.ad--container",
+    ".widget_nypost_dfp_ad_widget",
+    ".mol-ads-label-container",
+    ".mol-ads-label",
+    ".above-header-ad",
+    "#adm-leaderboard",
+    '[id^="gpt-"][class*="ad"]',
+    ".site-header-ad-wrapper",
+    ".wp-block-the-wrap-ad",
+    ".yad-skin-ad-top",
+    "#bottom-adhesion",
+    '[id^="ad-pos-"]',
+    ".c-adSkyBox",
+];
+
+const BUILT_IN_AD_CONTAINER_CLEANUP_SELECTORS = [
+    ".adsbygoogle",
+    ".google-auto-placed",
+    ".adskeeper-container",
+    ".freestar-ad",
+    ".mgid-display-box",
+    ".mgbox",
+    ".mg-display-box",
+    '[id^="div-gpt-ad"]',
+    '[id*="div-gpt-ad-"]',
+    '[id*="leaderboard"]',
+    '[class*="leaderboard"]',
+    '[class*="mm-ads-"]',
+    ".header-and-footer--banner-ad",
+    ".adsninja-ad-zone",
+    '[id^="ad-zone-container-adsninja-ad-unit-"]',
+    '[id^="ad-zone-size-container-adsninja-ad-unit-"]',
+    ".side-ad-trail",
+    ".ad-wrapper",
+    ".zad.billboard",
+    ".zad.halfpage",
+    ".ad-container.desktop",
+    ".ad.gam",
+    ".ad.ad--container",
+    ".widget_nypost_dfp_ad_widget",
+    ".mol-ads-label-container",
+    ".mol-ads-label",
+    ".above-header-ad",
+    "#adm-leaderboard",
+    '[id^="gpt-"][class*="ad"]',
+    ".site-header-ad-wrapper",
+    ".wp-block-the-wrap-ad",
+    ".yad-skin-ad-top",
+    "#bottom-adhesion",
+    '[id^="ad-pos-"]',
+    ".c-adSkyBox",
+    '[class*="Ad-module-scss-module"][class*="__ad"]',
+    '[class*="ad-container"]',
+    '[class*="ad-slot"]',
+    '[class*="ad_slot"]',
+    '[class*="ad-unit"]',
+    '[class*="adunit"]',
+    '[class*="video-ad"]',
+    '[class*="ad-video"]',
+    '[class*="preroll"]',
+    '[class*="pre-roll"]',
+    '[class*="midroll"]',
+    '[class*="outstream"]',
+    '[class*="instream"]',
+    '[class*="vpaid"]',
+    '[class*="ima-ad"]',
+    '[id*="ad-container"]',
+    '[id*="ad-slot"]',
+    '[id*="ad_unit"]',
+    '[id*="video-ad"]',
+    '[id*="ad-video"]',
+    '[id*="preroll"]',
+    '[id*="pre-roll"]',
+    '[id*="midroll"]',
+    '[id*="outstream"]',
+    '[id*="instream"]',
+    '[id*="vpaid"]',
+    "[data-ad-client]",
+    "[data-ad-slot]",
+    "[data-ad-unit]",
+    "[data-ad-unit-path]",
+];
+
+const BUILT_IN_AD_CONTAINER_HINTS = [
+    "adsbygoogle",
+    "google_ads",
+    "google-ads",
+    "div-gpt-ad",
+    "ad-slot",
+    "adslot",
+    "ad-container",
+    "advert",
+    "banner-ad",
+    "leaderboard",
+    "freestar-ad",
+    "mm-ads",
+    "adsninja-ad",
+    "ad-zone",
+    "side-ad",
+    "ad-wrapper",
+    "zad",
+    "ad gam",
+    "nypost_dfp_ad",
+    "mol-ads-label",
+    "above-header-ad",
+    "adm-leaderboard",
+    "wp-block-the-wrap-ad",
+    "yad-skin-ad",
+    "ad-module-scss-module",
+    "bottom-adhesion",
+    "ad-pos-",
+    "c-adskybox",
+    "video-ad",
+    "ad-video",
+    "preroll",
+    "pre-roll",
+    "midroll",
+    "outstream",
+    "instream",
+    "vpaid",
+    "ima-ad",
+    "sponsor",
+    "promoted",
+];
+
+const BUILT_IN_CLEANUP_MUTATION_HINTS = [
+    ...BUILT_IN_AD_CONTAINER_HINTS,
+    "adsbygoogle",
+    "google_ads_iframe",
+    "doubleclick",
+    "googlesyndication",
+    "googletagservices",
+    "googleads",
+    "aswift",
+    "gpt",
+    "freestar",
+    "responsive-sda",
+    "ad-center",
+    "adsninja",
+    "ad-pos",
+    "adskybox",
+    "bottomads",
+    "data-text-ad",
+    "tads",
+];
+
+const AD_ONLY_TEXT_PATTERNS = [
+    /^(?:ad|ads|advertisement|advertisements|sponsored|sponsor|promoted)$/i,
+    /^(?:skip|skip ad|skip ads)(?:\s+\d+)?(?:\s*[^\w\s]+)?$/i,
+    /^(?:close|close ad|close ads|x)(?:\s*[^\w\s]+)?$/i,
+    /^(?:advertisement\s+)?(?:skip|skip ad|skip ads)(?:\s+\d+)?(?:\s*[^\w\s]+)?$/i,
+];
 
 export class CosmeticFilter {
+    private aggressiveRules = new Set<string>();
+    private wallFixObserver: MutationObserver | null = null;
+    private observerTimeout: number | null = null;
+    private builtInCleanupObserver: MutationObserver | null = null;
+    private builtInCleanupObservedRoots = new WeakSet<Node>();
+    private builtInCleanupTimeout: number | null = null;
+    private builtInCleanupActivityTimeout: number | null = null;
+    private pendingBuiltInCleanupActivityCount = 0;
+    private pendingBuiltInCleanupHints = new Set<string>();
+    private lastBuiltInCleanupActivityAt = 0;
+    private activeWallFix: WallFixSelectors | null = null;
 
-    constructor() { }
+    constructor(private readonly showToast: (options: ToastOptions) => void) {}
 
-    private aggressiveRules: Set<string> = new Set();
-    private observerTimeout: any = null;
+    private async appendToolActivity(hostname: string, activity: HidingRuleActivity): Promise<void> {
+        const snapshot = await getLocal<{ toolActivityLog?: Array<{
+            tool: string;
+            title: string;
+            message: string;
+            tone: "info" | "success" | "error";
+            timestamp: number;
+            domain?: string;
+        }> }>("toolActivityLog");
+        const current = snapshot && Array.isArray(snapshot.toolActivityLog) ? snapshot.toolActivityLog : [];
 
-    public applyHidingRules(rules: HidingRule[], source: string) {
-        if (!rules) return;
+        await setLocal({
+            toolActivityLog: [
+                {
+                    tool: activity.tool,
+                    title: activity.title || `${activity.tool} Saved`,
+                    message: activity.message || "Saved a hiding rule for this page element.",
+                    tone: activity.tone || "success",
+                    timestamp: Date.now(),
+                    domain: normalizeActivityHostname(hostname),
+                },
+                ...current,
+            ].slice(0, 25),
+        });
+    }
 
-        // Standard CSS Injection (Fast, efficient)
-        const styleId = `zenithguard-styles-${source}`;
-        let styleSheet = document.getElementById(styleId);
-        if (!styleSheet) {
-            styleSheet = document.createElement('style');
-            styleSheet.id = styleId;
-            (document.head || document.documentElement).appendChild(styleSheet);
+    private async persistCosmeticCleanupSummary(hostname: string, summary: CosmeticCleanupSummary): Promise<void> {
+        const normalizedHostname = normalizeActivityHostname(hostname);
+        const snapshot = await getLocal<{ cosmeticCleanupSummaryByHostname?: Record<string, CosmeticCleanupSummary> }>("cosmeticCleanupSummaryByHostname");
+        const current = snapshot && snapshot.cosmeticCleanupSummaryByHostname && typeof snapshot.cosmeticCleanupSummaryByHostname === "object"
+            ? snapshot.cosmeticCleanupSummaryByHostname
+            : {};
+
+        await setLocal({
+            cosmeticCleanupSummaryByHostname: {
+                ...current,
+                [normalizedHostname]: summary,
+            },
+        });
+    }
+
+    applyHidingRules(rules: HidingRule[], scope: "custom" | "default" | "filterList"): void {
+        const styleId = `zenithguard-styles-${scope}`;
+        let style = document.getElementById(styleId) as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement("style");
+            style.id = styleId;
+            (document.head || document.documentElement).appendChild(style);
         }
 
-        // Filter YouTube Skip Buttons
-        const SAFE_SELECTORS = [
-            '.ytp-ad-skip-button', '.ytp-ad-skip-button-modern', '.videoAdUiSkipButton',
-            '.ytp-ad-skip-button-container', '.ytp-ad-module'
-        ];
-
-        const validRules = rules.filter(r => r.enabled && r.value);
-
-        // If no valid rules (whitelisted or protection off), clear all
-        if (validRules.length === 0) {
-            this.stop(source);
+        const activeRules = rules.filter((rule) => rule.enabled !== false && rule.value);
+        const builtInCleanup = BUILT_IN_AD_SLOT_CLEANUP_SELECTORS.join(", ");
+        if (activeRules.length === 0) {
+            style.textContent = `${builtInCleanup} { display: none !important; }`;
+            if (scope === "custom") {
+                this.stopAggressiveFiltering();
+            }
+            this.runBuiltInAdSlotCleanup();
             return;
         }
 
-        const cssRules = validRules
-            .map(r => r.value)
-            .filter(selector => !SAFE_SELECTORS.some(safe => selector.includes(safe)));
+        const filteredSelectors = activeRules
+            .map((rule) => rule.value)
+            .filter((selector) => !selector.includes(".ytp-ad-skip-button"));
 
-        if (cssRules.length > 0) {
-            const selector = cssRules.join(', ');
-            styleSheet.textContent = `${selector}:not(#zg-zapper-highlight):not(#zg-inspector-highlight) { display: none !important; }`;
-        } else {
-            styleSheet.textContent = '';
-        }
+        const combined = filteredSelectors.length > 0 ? `${filteredSelectors.join(", ")}, ${builtInCleanup}` : builtInCleanup;
+        style.textContent = `${combined}:not(#zg-zapper-highlight):not(#zg-inspector-highlight) { display: none !important; }`;
+        this.runBuiltInAdSlotCleanup();
 
-        // AGGRESSIVE MODE: For Custom Rules (Zapper/Manual) and AI Rules
-        if (source === 'custom') {
-            cssRules.forEach(s => this.aggressiveRules.add(s));
+        if (scope === "custom") {
+            filteredSelectors.forEach((selector) => this.aggressiveRules.add(selector));
             this.startAggressiveObserver();
             this.enforceAggressiveFiltering();
         }
-
-        // NEW: Protect the style tag
-        if (styleId) {
-            tamperDetector.protect(styleId, () => {
-                // Determine rules to re-apply. 
-                // Since this callback captures 'rules' from the closure, it might be stale if applyHidingRules is called again with new rules.
-                // ideally we should unprotect first, but protect() overwrites anyway.
-                // However, capturing 'rules' is fine because if new rules come, applyHidingRules runs, overwriting the callback.
-                this.applyHidingRules(rules, source);
-            });
-        }
     }
 
-    public executeAdblockWallFix(selectors: { overlaySelector: string, scrollSelector?: string }) {
-        this.applyWallFix(selectors);
-        this.showToast({ message: 'AI Anti-Adblock Wall activated.', type: 'success', duration: 6000 });
-    }
-
-    public applyWallFix(selectors: { overlaySelector: string; scrollSelector?: string }) {
-        const { overlaySelector, scrollSelector } = selectors;
-        if (!overlaySelector) return;
-
-        // Add to aggressive set
-        overlaySelector.split(',').forEach(s => this.aggressiveRules.add(s.trim()));
-
-        // Handle scroll unlocking specifically
-        if (scrollSelector) {
-            this.unlockScroll(scrollSelector);
-        } else {
-            this.unlockScroll('body');
-            this.unlockScroll('html');
+    previewElement(selector: string | null, enabled: boolean): void {
+        if (!selector || !enabled) {
+            document.getElementById("zenithguard-preview-style")?.remove();
+            return;
         }
 
+        let style = document.getElementById("zenithguard-preview-style") as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement("style");
+            style.id = "zenithguard-preview-style";
+            (document.head || document.documentElement).appendChild(style);
+        }
+
+        style.textContent = `${selector} { outline: 2px solid #3b82f6 !important; outline-offset: 2px !important; }`;
+    }
+
+    executeAdblockWallFix(selectors: WallFixSelectors): WallFixApplyResult {
+        const result = this.applyWallFix(selectors);
+        this.showToast({ message: "Temporary wall-fix applied. Reopen the popup to save or discard it.", type: "success", duration: 6000 });
+        return result;
+    }
+
+    applyWallFix(selectors: WallFixSelectors): WallFixApplyResult {
+        this.activeWallFix = selectors;
+        selectors.overlaySelector.split(",").forEach((selector) => this.aggressiveRules.add(selector.trim()));
+        this.unlockScroll(selectors.scrollSelector || "body");
+        this.unlockScroll("html");
+        let contentUnlockMatchCount = 0;
+        if (selectors.contentUnlockSelector) {
+            contentUnlockMatchCount = this.unlockContentContainers(selectors.contentUnlockSelector);
+        }
+        const heuristicOverlayMatchCount = this.removeLikelyInteractionBlockers(selectors.contentUnlockSelector);
         this.startAggressiveObserver();
         this.enforceAggressiveFiltering();
+        const overlayMatchCount = selectors.overlaySelector
+            .split(",")
+            .map((selector) => selector.trim())
+            .filter(Boolean)
+            .reduce((total, selector) => total + this.findEverywhere(selector).length, 0) + heuristicOverlayMatchCount;
+
+        return {
+            overlayMatchCount,
+            contentUnlockMatchCount,
+        };
     }
 
-    private startAggressiveObserver() {
-        if (!this.wallFixObserver) {
-            this.wallFixObserver = new MutationObserver(() => {
-                // Debounce the heavy DOM search
-                if (this.observerTimeout) clearTimeout(this.observerTimeout);
-                this.observerTimeout = setTimeout(() => {
-                    this.enforceAggressiveFiltering();
-                }, 100); // Check every 100ms max
-            });
-            this.wallFixObserver.observe(document.documentElement, {
-                childList: true,
-                subtree: true,
-                attributes: true,
-                attributeFilter: ['style', 'class', 'id']
-            });
+    applyIframeSandboxing(): void {
+        const currentHostname = window.location.hostname;
+        for (const iframe of Array.from(document.querySelectorAll("iframe"))) {
+            try {
+                if (!iframe.src) {
+                    continue;
+                }
+                const iframeHostname = new URL(iframe.src, window.location.href).hostname;
+                if (iframeHostname !== currentHostname && !iframe.hasAttribute("sandbox")) {
+                    iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation allow-popups allow-forms");
+                }
+            } catch {
+                // Ignore malformed iframe src values.
+            }
         }
     }
 
-    private enforceAggressiveFiltering() {
-        if (this.aggressiveRules.size === 0) return;
+    async saveHidingRule(selector: string, activity?: HidingRuleActivity): Promise<void> {
+        try {
+            const hostname = window.location.hostname;
+            const snapshot = await getSync<{ customHidingRules?: Record<string, HidingRule[]> }>(["customHidingRules"]);
+            const customHidingRules = snapshot.customHidingRules || {};
+            const bucketKey = findMatchingRuleBucketKey(hostname, customHidingRules) || hostname;
+            customHidingRules[bucketKey] = customHidingRules[bucketKey] || [];
+            const existingRule = customHidingRules[bucketKey].find((rule) => rule.value === selector);
+            if (existingRule && existingRule.enabled !== false) {
+                this.showToast({ message: "This hiding rule already exists." });
+                return;
+            }
 
-        // 1. Force CSS injection at bottom
-        this.ensureAggressiveStyleTag();
+            if (existingRule) {
+                existingRule.enabled = true;
+            } else {
+                customHidingRules[bucketKey].push({ value: selector, enabled: true });
+            }
+            await setSync({ customHidingRules: normalizeCustomHidingRuleBuckets(customHidingRules) });
+            if (activity) {
+                await this.appendToolActivity(hostname, activity);
+            }
+            this.showToast({ message: "Hiding rule saved!" });
+        } catch {
+            this.showToast({ message: "Failed to save rule.", type: "error" });
+        }
+    }
 
-        // 2. Physical Removal
-        this.aggressiveRules.forEach(selector => {
-            const elements = this.findEverywhere(selector);
-            elements.forEach(el => {
-                const htmlEl = el as HTMLElement;
-                // Only touch if it's visible or exists
-                const style = window.getComputedStyle(htmlEl);
-                if (style.display !== 'none' || style.visibility !== 'hidden') {
-                    try {
-                        htmlEl.remove();
-                        console.log(`ZenithGuard: Physically removed "${selector}"`);
-                    } catch (e) {
-                        htmlEl.style.setProperty('display', 'none', 'important');
-                    }
-                }
-            });
+    stop(scope?: string): void {
+        if (scope) {
+            const style = document.getElementById(`zenithguard-styles-${scope}`) as HTMLStyleElement | null;
+            if (style) {
+                style.textContent = "";
+            }
+        } else {
+            for (const id of [
+                "zenithguard-styles-custom",
+                "zenithguard-styles-filterList",
+                "zenithguard-styles-default",
+                "zenithguard-preview-style",
+                "zenithguard-aggressive-styles",
+            ]) {
+                document.getElementById(id)?.remove();
+            }
+        }
+
+        if (!scope || scope === "custom") {
+            this.stopAggressiveFiltering();
+        }
+
+        if (!scope) {
+            this.builtInCleanupObserver?.disconnect();
+            this.builtInCleanupObserver = null;
+            this.builtInCleanupObservedRoots = new WeakSet<Node>();
+            if (this.builtInCleanupTimeout) {
+                window.clearTimeout(this.builtInCleanupTimeout);
+                this.builtInCleanupTimeout = null;
+            }
+            if (this.builtInCleanupActivityTimeout) {
+                window.clearTimeout(this.builtInCleanupActivityTimeout);
+                this.builtInCleanupActivityTimeout = null;
+            }
+            this.pendingBuiltInCleanupActivityCount = 0;
+            this.pendingBuiltInCleanupHints.clear();
+        }
+    }
+
+    private stopAggressiveFiltering(): void {
+        this.aggressiveRules.clear();
+        this.activeWallFix = null;
+        this.wallFixObserver?.disconnect();
+        this.wallFixObserver = null;
+        if (this.observerTimeout) {
+            window.clearTimeout(this.observerTimeout);
+            this.observerTimeout = null;
+        }
+    }
+
+    private runBuiltInAdSlotCleanup(): void {
+        const result = this.collapseBuiltInAdPlaceholders();
+        this.queueBuiltInCleanupActivity(result);
+        this.startBuiltInCleanupObserver();
+        this.observeBuiltInShadowRoots();
+    }
+
+    private startBuiltInCleanupObserver(): void {
+        if (this.builtInCleanupObserver) {
+            this.observeBuiltInCleanupRoot(document.documentElement || document.body);
+            return;
+        }
+
+        this.builtInCleanupObserver = new MutationObserver((mutations) => {
+            if (this.mutationsMayNeedBuiltInCleanup(mutations)) {
+                this.scheduleBuiltInCleanup();
+            }
         });
 
-        // 3. Re-Check Scroll Locks (Generic)
-        this.unlockScroll('body');
-        this.unlockScroll('html');
+        this.observeBuiltInCleanupRoot(document.documentElement || document.body);
     }
 
-    private ensureAggressiveStyleTag() {
-        const styleId = 'zenithguard-aggressive-styles';
-        let styleSheet = document.getElementById(styleId) as HTMLStyleElement;
-        if (!styleSheet) {
-            styleSheet = document.createElement('style');
-            styleSheet.id = styleId;
-            (document.head || document.documentElement).appendChild(styleSheet);
-        } else {
-            // Keep moving to bottom
-            if (document.head && document.head.lastElementChild !== styleSheet) {
-                document.head.appendChild(styleSheet);
-            }
+    private observeBuiltInCleanupRoot(root: Node | null | undefined): void {
+        if (!this.builtInCleanupObserver || !(root instanceof Node) || this.builtInCleanupObservedRoots.has(root)) {
+            return;
         }
 
-        const fullCss = Array.from(this.aggressiveRules).map(s => `${s} { 
-            display: none !important; 
-            opacity: 0 !important; 
-            pointer-events: none !important; 
-            visibility: hidden !important; 
-            z-index: -2147483647 !important;
-            width: 0 !important; height: 0 !important;
-            position: fixed !important; top: -10000px !important;
-        }`).join('\n');
-
-        if (styleSheet.textContent !== fullCss) styleSheet.textContent = fullCss;
+        this.builtInCleanupObserver.observe(root, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["class", "id", "data-ad-status", "data-ad-client", "data-ad-slot", "data-ad-unit", "data-ad-unit-path", "data-text-ad", "data-pla", "aria-label"],
+        });
+        this.builtInCleanupObservedRoots.add(root);
     }
 
-    private unlockScroll(selector: string) {
-        const el = document.querySelector(selector) as HTMLElement;
-        if (el) {
-            const style = window.getComputedStyle(el);
-            if (style.overflow === 'hidden' || style.position === 'fixed' || style.height === '100%') {
-                el.style.setProperty('overflow', 'visible', 'important');
-                el.style.setProperty('position', 'static', 'important');
-                el.style.setProperty('height', 'auto', 'important');
-                el.style.setProperty('pointer-events', 'auto', 'important');
+    private observeBuiltInShadowRoots(root: Document | ShadowRoot = document): void {
+        for (const host of Array.from(root.querySelectorAll("*"))) {
+            const shadowRoot = (host as HTMLElement).shadowRoot;
+            if (!shadowRoot) {
+                continue;
             }
+            this.observeBuiltInCleanupRoot(shadowRoot);
+            this.observeBuiltInShadowRoots(shadowRoot);
         }
     }
 
-    // ... (Keep existing previewElement, previewManualRule, applyIframeSandboxing, saveHidingRule) ...
-    // Note: I will need to be careful not to delete those methods in the replacement if I don't include them.
-    // Since I am replacing the CLASS BODY effectively or a large chunk, I must be precise.
-    // The instructions say "EndLine: 228", which is the end of the file.
-    // I need to make sure I include the other methods or use multiple chunks.
-    // Ah, applyHidingRules starts at line 8.
-    // I will replace from line 8 to line 228 with the new implementation including helper methods.
-
-    // WAIT: I shouldn't delete `applyIframeSandboxing` etc.
-    // I'll use target start/end lines to surgical replace.
-    // I will replace `applyHidingRules` through `applyWallFixStyles` with the new unified logic.
-    // And keep `previewElement` etc. if possible.
-    // But `previewElement` is in the middle.
-    // Usage: `applyHidingRules` (8-44)
-    // `previewElement` (46-59)
-    // `previewManualRule` (61-82)
-    // `applyIframeSandboxing` (84-98)
-    // `saveHidingRule` (100-116)
-    // `wallFixObserver`... (117)
-
-    // I will replace `applyHidingRules` separately, then replace the bottom half.
-
-    public previewElement(selector: string | null, isPreviewing: boolean) {
-        const styleId = 'zenithguard-preview-style';
-        let styleSheet = document.getElementById(styleId);
-        if (isPreviewing && selector) {
-            if (!styleSheet) {
-                styleSheet = document.createElement('style');
-                styleSheet.id = styleId;
-                (document.head || document.documentElement).appendChild(styleSheet);
-            }
-            styleSheet.textContent = `${selector} { outline: 3px dashed #d97706 !important; background-color: rgba(251, 191, 36, 0.3) !important; box-shadow: 0 0 0 9999px rgba(0,0,0,0.5); }`;
-        } else if (styleSheet) {
-            styleSheet.remove();
+    private scheduleBuiltInCleanup(): void {
+        if (this.builtInCleanupTimeout) {
+            window.clearTimeout(this.builtInCleanupTimeout);
         }
+        this.builtInCleanupTimeout = window.setTimeout(() => {
+            const result = this.collapseBuiltInAdPlaceholders();
+            this.queueBuiltInCleanupActivity(result);
+            this.observeBuiltInShadowRoots();
+        }, 150);
     }
 
-    public previewManualRule(selector: string) {
-        const styleId = 'zenithguard-manual-preview-style';
-        let styleSheet = document.getElementById(styleId);
-        if (styleSheet) styleSheet.remove();
+    private mutationsMayNeedBuiltInCleanup(mutations: MutationRecord[]): boolean {
+        if (this.isGoogleSearchResultsPage() && mutations.some((mutation) => mutation.type === "childList"
+            && Array.from(mutation.addedNodes).some((node) => node instanceof HTMLElement))) {
+            return true;
+        }
 
-        styleSheet = document.createElement('style');
-        styleSheet.id = styleId;
-        styleSheet.textContent = `
-            ${selector} { 
-                outline: 3px solid #22c55e !important; 
-                box-shadow: 0 0 15px #22c55e, 0 0 0 9999px rgba(34, 197, 94, 0.2) !important;
-                transition: outline 0.3s, box-shadow 0.3s;
-                border-radius: 4px;
+        return mutations.some((mutation) => {
+            if (mutation.type === "attributes") {
+                return mutation.target instanceof HTMLElement
+                    && this.elementMayNeedBuiltInCleanup(mutation.target);
             }
-        `;
-        (document.head || document.documentElement).appendChild(styleSheet);
 
-        setTimeout(() => {
-            const sheet = document.getElementById(styleId);
-            if (sheet) sheet.remove();
-        }, 2500);
+            if (mutation.type !== "childList") {
+                return false;
+            }
+
+            return Array.from(mutation.addedNodes).some((node) => this.nodeMayNeedBuiltInCleanup(node));
+        });
     }
 
-    public applyIframeSandboxing() {
-        const iframes = Array.from(document.querySelectorAll('iframe'));
-        const ownDomain = window.location.hostname;
-        const sandboxPermissions = "allow-scripts allow-same-origin allow-presentation allow-popups allow-forms";
+    private nodeMayNeedBuiltInCleanup(node: Node): boolean {
+        if (!(node instanceof HTMLElement)) {
+            return false;
+        }
 
-        for (const iframe of iframes) {
-            try {
-                if (iframe.src && new URL(iframe.src).hostname !== ownDomain) {
-                    if (!iframe.hasAttribute('sandbox')) {
-                        iframe.setAttribute('sandbox', sandboxPermissions);
-                    }
+        if (this.elementMayNeedBuiltInCleanup(node)) {
+            return true;
+        }
+
+        const candidates = Array.from(node.querySelectorAll("[id], [class], iframe, ins, [data-ad-client], [data-ad-slot], [data-ad-unit], [data-ad-unit-path], [data-text-ad], [data-pla]"))
+            .slice(0, 80);
+        return candidates.some((candidate) => candidate instanceof HTMLElement && this.elementMayNeedBuiltInCleanup(candidate));
+    }
+
+    private elementMayNeedBuiltInCleanup(element: HTMLElement): boolean {
+        const marker = [
+            element.tagName,
+            element.id,
+            typeof element.className === "string" ? element.className : "",
+            element.getAttribute("name"),
+            element.getAttribute("src"),
+            element.getAttribute("data-ad-status"),
+            element.getAttribute("data-ad-client"),
+            element.getAttribute("data-ad-slot"),
+            element.getAttribute("data-ad-unit"),
+            element.getAttribute("data-ad-unit-path"),
+            element.getAttribute("data-text-ad"),
+            element.getAttribute("data-pla"),
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        return BUILT_IN_CLEANUP_MUTATION_HINTS.some((hint) => marker.includes(hint));
+    }
+
+    private startAggressiveObserver(): void {
+        if (this.wallFixObserver) {
+            return;
+        }
+
+        const observeRoot = document.documentElement || document.body;
+        if (!(observeRoot instanceof Node)) {
+            return;
+        }
+
+        this.wallFixObserver = new MutationObserver(() => {
+            if (this.observerTimeout) {
+                window.clearTimeout(this.observerTimeout);
+            }
+            this.observerTimeout = window.setTimeout(() => this.enforceAggressiveFiltering(), 100);
+        });
+
+        this.wallFixObserver.observe(observeRoot, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["style", "class", "id"],
+        });
+    }
+
+    private enforceAggressiveFiltering(): void {
+        this.ensureAggressiveStyleTag();
+        const result = this.collapseBuiltInAdPlaceholders();
+        this.queueBuiltInCleanupActivity(result);
+        for (const selector of this.aggressiveRules) {
+            for (const node of this.findEverywhere(selector)) {
+                try {
+                    (node as HTMLElement).remove();
+                } catch {
+                    (node as HTMLElement).style.setProperty("display", "none", "important");
                 }
-            } catch (e) { }
-        }
-    }
-
-    public async saveHidingRule(selector: string) {
-        try {
-            const domain = window.location.hostname;
-            let { customHidingRules = {} } = await chrome.storage.sync.get('customHidingRules') as any;
-            if (!customHidingRules[domain]) customHidingRules[domain] = [];
-
-            if (!customHidingRules[domain].some((r: any) => r.value === selector)) {
-                customHidingRules[domain].push({ value: selector, enabled: true });
-                await chrome.storage.sync.set({ customHidingRules });
-                this.showToast({ message: 'Hiding rule saved!' });
-            } else {
-                this.showToast({ message: 'This hiding rule already exists.' });
             }
-        } catch (e: any) {
-            this.showToast({ message: 'Failed to save rule.', type: 'error' });
+        }
+        this.unlockScroll("body");
+        this.unlockScroll("html");
+        if (this.activeWallFix?.contentUnlockSelector) {
+            this.unlockContentContainers(this.activeWallFix.contentUnlockSelector);
+            this.removeLikelyInteractionBlockers(this.activeWallFix.contentUnlockSelector);
         }
     }
-    private wallFixObserver: MutationObserver | null = null;
-    private activeWallFix: { overlaySelector: string, scrollSelector?: string } | null = null;
 
-    /**
-     * Stops the filter and clears all injected styles/state.
-     * @param source Optional specific source to clear. If omitted, clears EVERYTHING.
-     */
-    public stop(source?: string) {
-        if (source) {
-            const styleId = `zenithguard-styles-${source}`;
-            const styleSheet = document.getElementById(styleId);
-            if (styleSheet) styleSheet.textContent = '';
-        } else {
-            // Clear all possible sources
-            ['custom', 'filterList', 'default', 'preview', 'manual-preview'].forEach(s => {
-                const el = document.getElementById(`zenithguard-styles-${s}`);
-                if (el) el.remove();
-            });
-
-            const aggressiveStyle = document.getElementById('zenithguard-aggressive-styles');
-            if (aggressiveStyle) aggressiveStyle.remove();
-
-            const manualPreview = document.getElementById('zenithguard-manual-preview-style');
-            if (manualPreview) manualPreview.remove();
-
-            const preview = document.getElementById('zenithguard-preview-style');
-            if (preview) preview.remove();
+    private ensureAggressiveStyleTag(): void {
+        const styleId = "zenithguard-aggressive-styles";
+        let style = document.getElementById(styleId) as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement("style");
+            style.id = styleId;
+            (document.head || document.documentElement).appendChild(style);
         }
-
-        // Always clear aggressive state and observers if stopping globally or custom source
-        if (!source || source === 'custom') {
-            this.aggressiveRules.clear();
-            if (this.wallFixObserver) {
-                this.wallFixObserver.disconnect();
-                this.wallFixObserver = null;
-            }
-            if (this.observerTimeout) clearTimeout(this.observerTimeout);
-        }
-
-        console.log(`ZenithGuard: Cosmetic Filter stopped${source ? ` for source: ${source}` : ''}.`);
+        style.textContent = Array.from(this.aggressiveRules)
+            .map((selector) => `${selector} { display: none !important; opacity: 0 !important; pointer-events: none !important; visibility: hidden !important; z-index: -2147483647 !important; width: 0 !important; height: 0 !important; position: fixed !important; top: -10000px !important; max-height: 0 !important; overflow: hidden !important; }`)
+            .join("\n");
     }
 
-    /**
-     * Finds elements everywhere, including inside open Shadow Roots.
-     */
-    private findEverywhere(selector: string, root: Document | Element | ShadowRoot = document): Element[] {
-        if (!selector || typeof selector !== 'string' || selector.trim() === '' || selector === '0') return [];
-
-        let results: Element[] = [];
-        try {
-            results = Array.from(root.querySelectorAll(selector));
-        } catch (e) {
-            // console.warn(`ZenithGuard: Invalid selector skipped: "${selector}"`, e);
+    private findEverywhere(selector: string, root: Document | ShadowRoot = document): Element[] {
+        if (!selector || !selector.trim()) {
             return [];
         }
 
-        // Find all shadow hosts in this root
-        const hosts = Array.from(root.querySelectorAll('*')).filter(el => el.shadowRoot);
-        for (const host of hosts) {
-            if (host.shadowRoot) {
-                results = results.concat(this.findEverywhere(selector, host.shadowRoot));
+        let matches: Element[] = [];
+        try {
+            matches = Array.from(root.querySelectorAll(selector));
+        } catch {
+            return [];
+        }
+
+        for (const host of Array.from(root.querySelectorAll("*"))) {
+            if ((host as HTMLElement).shadowRoot) {
+                matches = matches.concat(this.findEverywhere(selector, (host as HTMLElement).shadowRoot as ShadowRoot));
             }
         }
 
-        return results;
+        return matches;
     }
 
-    private showToast(options: { message: string, type?: 'success' | 'error' | 'info' | 'loading', duration?: number, id?: string | null }) {
-        if ((window as any).ZenithGuardToastUtils && (window as any).ZenithGuardToastUtils.showToast) {
-            (window as any).ZenithGuardToastUtils.showToast(options);
+    private unlockScroll(selector: string): void {
+        for (const node of this.findEverywhere(selector)) {
+            const element = node as HTMLElement;
+            element.style.setProperty("overflow", "visible", "important");
+            element.style.setProperty("overflow-y", "visible", "important");
+            element.style.setProperty("position", "static", "important");
+            element.style.setProperty("pointer-events", "auto", "important");
         }
+    }
+
+    private unlockContentContainers(selector: string): number {
+        const matches = this.findEverywhere(selector);
+        for (const node of matches) {
+            const element = node as HTMLElement;
+            element.style.setProperty("max-height", "none", "important");
+            element.style.setProperty("height", "auto", "important");
+            element.style.setProperty("overflow", "visible", "important");
+            element.style.setProperty("clip-path", "none", "important");
+            element.style.setProperty("filter", "none", "important");
+            element.style.setProperty("opacity", "1", "important");
+            element.style.setProperty("visibility", "visible", "important");
+            element.style.setProperty("pointer-events", "auto", "important");
+            element.style.setProperty("transform", "none", "important");
+            element.style.removeProperty("mask-image");
+            element.style.removeProperty("-webkit-mask-image");
+        }
+        return matches.length;
+    }
+
+    private removeLikelyInteractionBlockers(contentSelector?: string): number {
+        if (!contentSelector || typeof document.elementsFromPoint !== "function") {
+            return 0;
+        }
+
+        const contentMatches = this.findEverywhere(contentSelector)
+            .filter((node): node is HTMLElement => node instanceof HTMLElement);
+        if (contentMatches.length === 0) {
+            return 0;
+        }
+
+        const hidden = new Set<HTMLElement>();
+        for (const contentElement of contentMatches.slice(0, 3)) {
+            const rect = contentElement.getBoundingClientRect();
+            if (rect.width < 40 || rect.height < 40) {
+                continue;
+            }
+
+            const x = Math.min(window.innerWidth - 2, Math.max(2, rect.left + Math.min(rect.width * 0.5, rect.width - 2)));
+            const y = Math.min(window.innerHeight - 2, Math.max(2, rect.top + Math.min(rect.height * 0.2, rect.height - 2)));
+            const stack = document.elementsFromPoint(x, y);
+
+            for (const node of stack) {
+                if (!(node instanceof HTMLElement)) {
+                    continue;
+                }
+                if (node === contentElement || contentElement.contains(node)) {
+                    break;
+                }
+                if (!this.isLikelyInteractionBlocker(node)) {
+                    continue;
+                }
+
+                this.hideElement(node);
+                node.style.setProperty("pointer-events", "none", "important");
+                hidden.add(node);
+            }
+        }
+
+        return hidden.size;
+    }
+
+    private isLikelyInteractionBlocker(element: HTMLElement): boolean {
+        const text = `${element.id || ""} ${element.className || ""} ${element.getAttribute("role") || ""}`.toLowerCase();
+        if (!text) {
+            return false;
+        }
+        if (text.includes("zenithguard") || text.includes("zg-")) {
+            return false;
+        }
+
+        const computed = window.getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        const zIndex = Number.parseInt(computed.zIndex || "0", 10);
+        const likelyKeyword = [
+            "paywall",
+            "modal",
+            "drawer",
+            "overlay",
+            "scrim",
+            "backdrop",
+            "subscribe",
+            "signin",
+            "sign-in",
+            "login",
+            "wall",
+            "radix",
+        ].some((keyword) => text.includes(keyword));
+
+        const coversSubstantialArea = rect.width >= window.innerWidth * 0.35 && rect.height >= 40;
+        const positionedAboveContent = computed.position === "fixed" || computed.position === "sticky" || computed.position === "absolute";
+        const interceptsPointer = computed.pointerEvents !== "none";
+        const visuallySubtle = Number.parseFloat(computed.opacity || "1") < 0.35
+            || computed.backgroundColor.includes("rgba(")
+            || computed.backdropFilter !== "none";
+
+        return likelyKeyword
+            && coversSubstantialArea
+            && positionedAboveContent
+            && interceptsPointer
+            && (visuallySubtle || (Number.isFinite(zIndex) && zIndex >= 10));
+    }
+
+    private collapseBuiltInAdPlaceholders(): CleanupCollapseResult {
+        const result: CleanupCollapseResult = { count: 0, hints: [] };
+        for (const selector of BUILT_IN_AD_SLOT_CLEANUP_SELECTORS) {
+            for (const node of this.findEverywhere(selector)) {
+                this.mergeCleanupResult(result, this.collapseElementAndContainers(node as HTMLElement));
+            }
+        }
+        this.mergeCleanupResult(result, this.collapseGoogleSearchSponsoredResults());
+        this.mergeCleanupResult(result, this.collapseEmptyAdContainers());
+        return result;
+    }
+
+    private collapseGoogleSearchSponsoredResults(): CleanupCollapseResult {
+        const result: CleanupCollapseResult = { count: 0, hints: [] };
+        if (!this.isGoogleSearchResultsPage()) {
+            return result;
+        }
+
+        const explicitAdSelectors = [
+            "#tads [data-text-ad]",
+            "#tadsb [data-text-ad]",
+            "#bottomads [data-text-ad]",
+            "#rhs [data-text-ad]",
+            "#tads [data-pla]",
+            "#tadsb [data-pla]",
+            "#bottomads [data-pla]",
+            "#rhs [data-pla]",
+        ];
+        for (const selector of explicitAdSelectors) {
+            for (const node of this.findEverywhere(selector)) {
+                if (node instanceof HTMLElement) {
+                    this.recordHiddenElement(result, node);
+                }
+            }
+        }
+
+        for (const region of this.findEverywhere("#tads, #tadsb, #bottomads, #rhs")) {
+            if (!(region instanceof HTMLElement)) {
+                continue;
+            }
+
+            for (const candidate of this.findGoogleSearchSponsoredContainers(region)) {
+                this.recordHiddenElement(result, candidate);
+            }
+        }
+
+        return result;
+    }
+
+    private isGoogleSearchResultsPage(): boolean {
+        const location = this.getCurrentLocation();
+        const hostname = location.hostname.toLowerCase();
+        const pathname = location.pathname.toLowerCase();
+        return /^www\.google\.[a-z.]+$/.test(hostname)
+            && (pathname === "/search" || location.search.includes("q="));
+    }
+
+    private getCurrentLocation(): Location | URL {
+        return window.location;
+    }
+
+    private findGoogleSearchSponsoredContainers(region: HTMLElement): HTMLElement[] {
+        const containers = new Set<HTMLElement>();
+        const labelCandidates = Array.from(region.querySelectorAll("span, div, [aria-label]"))
+            .filter((node): node is HTMLElement => node instanceof HTMLElement);
+
+        for (const label of labelCandidates) {
+            if (!this.isGoogleSearchSponsoredLabel(label)) {
+                continue;
+            }
+
+            const container = label.closest("[data-text-ad], [data-pla], .uEierd, [data-ved], [jscontroller]") as HTMLElement | null;
+            if (container && region.contains(container) && this.googleSearchAdContainerHasResultLink(container)) {
+                containers.add(container);
+                continue;
+            }
+
+            const directChild = this.findRegionChildContaining(region, label);
+            if (directChild && this.googleSearchAdContainerHasResultLink(directChild)) {
+                containers.add(directChild);
+            }
+        }
+
+        return Array.from(containers);
+    }
+
+    private isGoogleSearchSponsoredLabel(element: HTMLElement): boolean {
+        const normalizedText = (element.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const normalizedLabel = (element.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim().toLowerCase();
+        return normalizedText === "sponsored"
+            || normalizedText === "ad"
+            || normalizedText === "ads"
+            || normalizedLabel === "sponsored"
+            || normalizedLabel === "ad"
+            || normalizedLabel === "ads";
+    }
+
+    private googleSearchAdContainerHasResultLink(element: HTMLElement): boolean {
+        return Array.from(element.querySelectorAll("a[href]"))
+            .some((link) => link instanceof HTMLAnchorElement && Boolean(link.href));
+    }
+
+    private findRegionChildContaining(region: HTMLElement, element: HTMLElement): HTMLElement | null {
+        let current: HTMLElement | null = element;
+        while (current?.parentElement && current.parentElement !== region) {
+            current = current.parentElement;
+        }
+        return current?.parentElement === region ? current : null;
+    }
+
+    private collapseEmptyAdContainers(): CleanupCollapseResult {
+        const result: CleanupCollapseResult = { count: 0, hints: [] };
+        for (const selector of BUILT_IN_AD_CONTAINER_CLEANUP_SELECTORS) {
+            for (const node of this.findEverywhere(selector)) {
+                if (node instanceof HTMLElement && this.isAdOnlyContainer(node)) {
+                    this.mergeCleanupResult(result, this.collapseElementAndContainers(node));
+                }
+            }
+        }
+        return result;
+    }
+
+    private collapseElementAndContainers(element: HTMLElement): CleanupCollapseResult {
+        const result: CleanupCollapseResult = { count: 0, hints: [] };
+        this.recordHiddenElement(result, element);
+        let parent = element.parentElement;
+        let depth = 0;
+        while (parent && depth < 3 && (this.looksLikeAdContainer(parent) || this.isAdOnlyContainer(parent))) {
+            this.recordHiddenElement(result, parent);
+            parent = parent.parentElement;
+            depth += 1;
+        }
+        return result;
+    }
+
+    private hideElement(element: HTMLElement): boolean {
+        const wasAlreadyCleaned = element.dataset.zgCosmeticCleaned === "1";
+        element.dataset.zgCosmeticCleaned = "1";
+        element.style.setProperty("display", "none", "important");
+        element.style.setProperty("visibility", "hidden", "important");
+        element.style.setProperty("height", "0", "important");
+        element.style.setProperty("min-height", "0", "important");
+        element.style.setProperty("max-height", "0", "important");
+        element.style.setProperty("margin", "0", "important");
+        element.style.setProperty("padding", "0", "important");
+        element.style.setProperty("overflow", "hidden", "important");
+        return !wasAlreadyCleaned;
+    }
+
+    private queueBuiltInCleanupActivity(result: CleanupCollapseResult): void {
+        if (result.count <= 0) {
+            return;
+        }
+
+        this.pendingBuiltInCleanupActivityCount += result.count;
+        result.hints.forEach((hint) => this.pendingBuiltInCleanupHints.add(hint));
+        if (this.builtInCleanupActivityTimeout) {
+            return;
+        }
+
+        const elapsed = Date.now() - this.lastBuiltInCleanupActivityAt;
+        const delay = this.lastBuiltInCleanupActivityAt > 0
+            ? Math.max(750, 10000 - elapsed)
+            : 750;
+        this.builtInCleanupActivityTimeout = window.setTimeout(() => {
+            this.builtInCleanupActivityTimeout = null;
+            const total = this.pendingBuiltInCleanupActivityCount;
+            this.pendingBuiltInCleanupActivityCount = 0;
+            if (total <= 0) {
+                return;
+            }
+
+            this.lastBuiltInCleanupActivityAt = Date.now();
+            const hints = Array.from(this.pendingBuiltInCleanupHints).slice(0, 3);
+            this.pendingBuiltInCleanupHints.clear();
+            const plural = total === 1 ? "" : "s";
+            const summary: CosmeticCleanupSummary = {
+                count: total,
+                latestHint: hints[0],
+                updatedAt: this.lastBuiltInCleanupActivityAt,
+                pageUrl: window.location.href,
+            };
+            void Promise.all([
+                this.appendToolActivity(window.location.hostname, {
+                    tool: "Cosmetic Cleanup",
+                    title: "Ad Shells Cleaned",
+                    message: `Collapsed ${total} leftover ad shell${plural} after blocking.`,
+                    tone: "success",
+                }),
+                this.persistCosmeticCleanupSummary(window.location.hostname, summary),
+            ]).catch((error) => {
+                console.warn("ZenithGuard: Failed to persist cosmetic cleanup activity.", error);
+            });
+        }, delay);
+    }
+
+    private mergeCleanupResult(target: CleanupCollapseResult, incoming: CleanupCollapseResult): void {
+        target.count += incoming.count;
+        target.hints.push(...incoming.hints);
+    }
+
+    private recordHiddenElement(result: CleanupCollapseResult, element: HTMLElement): void {
+        if (this.hideElement(element)) {
+            result.count += 1;
+            result.hints.push(this.describeElement(element));
+        }
+    }
+
+    private describeElement(element: HTMLElement): string {
+        const tag = element.tagName.toLowerCase();
+        const id = element.id ? `#${element.id}` : "";
+        const className = typeof element.className === "string"
+            ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).map((value) => `.${value}`).join("")
+            : "";
+        const src = element instanceof HTMLIFrameElement && element.src
+            ? ` ${this.describeUrlHost(element.src)}`
+            : "";
+        const marker = [
+            element.getAttribute("data-ad-slot"),
+            element.getAttribute("data-ad-unit"),
+            element.getAttribute("data-ad-unit-path"),
+        ].find(Boolean);
+
+        return `${tag}${id}${className}${marker ? ` [${marker}]` : ""}${src}`.slice(0, 160);
+    }
+
+    private describeUrlHost(url: string): string {
+        try {
+            return new URL(url).hostname;
+        } catch {
+            return url.slice(0, 80);
+        }
+    }
+
+    private looksLikeAdContainer(element: HTMLElement): boolean {
+        const text = `${element.id || ""} ${element.className || ""}`.toLowerCase();
+        return BUILT_IN_AD_CONTAINER_HINTS.some((hint) => text.includes(hint))
+            || element.hasAttribute("data-ad-client")
+            || element.hasAttribute("data-ad-slot")
+            || element.hasAttribute("data-ad-unit")
+            || element.hasAttribute("data-ad-unit-path");
+    }
+
+    private isAdOnlyContainer(element: HTMLElement): boolean {
+        if (this.hasMeaningfulNonAdText(element)) {
+            return false;
+        }
+
+        const children = Array.from(element.children)
+            .filter((child): child is HTMLElement => child instanceof HTMLElement)
+            .filter((child) => !["SCRIPT", "STYLE", "TEMPLATE"].includes(child.tagName));
+
+        if (children.length === 0) {
+            return this.looksLikeAdContainer(element);
+        }
+
+        return children.every((child) => this.isKnownAdFrame(child)
+            || this.looksLikeAdContainer(child)
+            || this.isEffectivelyHidden(child));
+    }
+
+    private hasMeaningfulNonAdText(element: HTMLElement): boolean {
+        const normalized = (element.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+        if (!normalized) {
+            return false;
+        }
+
+        return !AD_ONLY_TEXT_PATTERNS.some((pattern) => pattern.test(normalized));
+    }
+
+    private isKnownAdFrame(element: HTMLElement): boolean {
+        if (element.tagName !== "IFRAME") {
+            return false;
+        }
+
+        const marker = [
+            element.id,
+            element.getAttribute("name"),
+            element.getAttribute("src"),
+        ].join(" ").toLowerCase();
+
+        return [
+            "google_ads_iframe",
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googletagservices.com",
+            "googleads.",
+            "gampad",
+            "aswift",
+        ].some((pattern) => marker.includes(pattern));
+    }
+
+    private isEffectivelyHidden(element: HTMLElement): boolean {
+        return element.style.display === "none"
+            || element.style.visibility === "hidden"
+            || element.style.height === "0px"
+            || element.style.height === "0";
     }
 }

@@ -1,327 +1,722 @@
-import { getURLCleanerRules } from './url_cleaner.js';
-import { getMalwareRules } from './malware_protection.js';
-import { getLatestYouTubeRules } from './youtube_rules_updater.js';
-import { getFocusModeRules } from './focus_mode_manager.js';
-import { BUNDLED_LISTS_PRESETS } from '../../settings/modules/subscription_presets.js';
-import { AppSettings, FilterList } from '../../types.js';
+import { getLocal, getSession, getSync } from "../../shared/storage_api";
+import { listHasMatchingHostname } from "../../shared/hostname_matching";
+import { getDynamicYoutubeRuleOverrides } from "./youtube_rules_cache";
+import { getMergedMalwareDomains } from "./malware_feed";
+import {
+    BUILT_IN_RULE_START_ID,
+    CORE_RULESET_ID,
+    HEURISTIC_RULE_START_ID,
+    ISOLATION_MODE_RULE_START_ID,
+    MALWARE_RULE_START_ID,
+    NETWORK_BLOCKLIST_RULE_START_ID,
+    USER_ALLOWLIST_RULE_START_ID,
+    YOUTUBE_DYNAMIC_RULE_START_ID,
+    YOUTUBE_RULESET_ID,
+    setDynamicRuleMetadata,
+    clearDynamicRuleMetadata,
+    type RuleMatchInfo,
+} from "./network_logger/dnr_pipeline";
+import {
+    DEFAULT_BLOCKLIST,
+    createFocusModeRules,
+    normalizeDomain,
+    type ToggleableRule,
+} from "./storage/defaults";
 
-// --- Constants ---
-export const HEURISTIC_RULE_ID_START = 100;
-export const NETWORK_BLOCK_RULE_ID_START = 1000;
-const YOUTUBE_AD_RULE_ID_START = 5000;
-const ISOLATION_MODE_RULE_ID_START = 6000;
-const FOCUS_MODE_RULE_ID_START = 7000;
-const URL_CLEANER_RULE_ID_START = 15000;
-export const MALWARE_RULE_ID_START = 18000;
-export const FILTER_LIST_RULE_ID_START = 20000;
-// REFACTORED: Pushed rule IDs up to make more space for allow rules
-const ALLOW_RULE_ID_START = 60000;
-const DEFAULT_BLOCKLIST_RULE_ID_START = 80000; // Pushed up
+const HEURISTIC_REGEX_MAX_LENGTH = 90;
+const HEURISTIC_MAX_TERMS_PER_RULE = 8;
+const DNR = {
+    MAIN_FRAME: "main_frame" as chrome.declarativeNetRequest.ResourceType,
+    SUB_FRAME: "sub_frame" as chrome.declarativeNetRequest.ResourceType,
+    SCRIPT: "script" as chrome.declarativeNetRequest.ResourceType,
+    XMLHTTPREQUEST: "xmlhttprequest" as chrome.declarativeNetRequest.ResourceType,
+    IMAGE: "image" as chrome.declarativeNetRequest.ResourceType,
+    MEDIA: "media" as chrome.declarativeNetRequest.ResourceType,
+    STYLESHEET: "stylesheet" as chrome.declarativeNetRequest.ResourceType,
+    OTHER: "other" as chrome.declarativeNetRequest.ResourceType,
+    WEBSOCKET: "websocket" as chrome.declarativeNetRequest.ResourceType,
+    OBJECT: "object" as chrome.declarativeNetRequest.ResourceType,
+};
+const ALL_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.MAIN_FRAME,
+    DNR.SUB_FRAME,
+    DNR.SCRIPT,
+    DNR.XMLHTTPREQUEST,
+    DNR.IMAGE,
+    DNR.MEDIA,
+    DNR.STYLESHEET,
+    DNR.OTHER,
+    DNR.WEBSOCKET,
+];
+const ALL_RESOURCE_TYPES_WITH_OBJECT: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.MAIN_FRAME,
+    DNR.SUB_FRAME,
+    DNR.SCRIPT,
+    DNR.XMLHTTPREQUEST,
+    DNR.IMAGE,
+    DNR.MEDIA,
+    DNR.WEBSOCKET,
+    DNR.OTHER,
+];
+const HEURISTIC_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.SCRIPT,
+    DNR.XMLHTTPREQUEST,
+    DNR.SUB_FRAME,
+    DNR.WEBSOCKET,
+    DNR.OTHER,
+];
+const ISOLATION_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.SCRIPT,
+    DNR.OBJECT,
+    DNR.SUB_FRAME,
+];
+const YOUTUBE_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.XMLHTTPREQUEST,
+    DNR.SCRIPT,
+    DNR.SUB_FRAME,
+    DNR.OTHER,
+    DNR.IMAGE,
+    DNR.MEDIA,
+];
+const URL_FILTER_RESOURCE_TYPES: chrome.declarativeNetRequest.ResourceType[] = [
+    DNR.XMLHTTPREQUEST,
+    DNR.SCRIPT,
+    DNR.SUB_FRAME,
+    DNR.OTHER,
+];
+const MALWARE_RULE_CHUNK_SIZE = 4_000;
+const USER_ALLOWLIST_RULES_PER_SITE = 3;
 
-// Reduced limits to prevent "2KB memory limit" errors (Error 101)
-const REGEX_CHUNK_LIMIT = 90; // Decreased from 128
-const KEYWORD_COUNT_LIMIT = 8; // Decreased from 20
+type RuleSettingsSnapshot = {
+    isHeuristicEngineEnabled?: boolean;
+    heuristicKeywords?: ToggleableRule[];
+    heuristicAllowlist?: ToggleableRule[];
+    networkBlocklist?: Array<ToggleableRule | string>;
+    defaultBlocklist?: Array<ToggleableRule | string>;
+    disabledSites?: string[];
+    isUrlCleanerEnabled?: boolean;
+    isMalwareProtectionEnabled?: boolean;
+    isolationModeSites?: Array<ToggleableRule | string>;
+    isYouTubeAdBlockingEnabled?: boolean;
+    isProtectionEnabled?: boolean;
+};
 
-// --- State ---
-let isApplyingRules = false;
+type RuleLike = ToggleableRule | string | null | undefined;
 
-export function getRuleSource(ruleId: number) {
-    if (ruleId >= DEFAULT_BLOCKLIST_RULE_ID_START) return 'Default Blocklist';
-    if (ruleId >= ALLOW_RULE_ID_START) return 'User Allowlist'; // NEW
-    if (ruleId >= FILTER_LIST_RULE_ID_START) return 'Filter List';
-    if (ruleId >= MALWARE_RULE_ID_START) return 'Malware Protection';
-    if (ruleId >= URL_CLEANER_RULE_ID_START) return 'URL Cleaner';
-    if (ruleId >= FOCUS_MODE_RULE_ID_START) return 'Focus Mode';
-    if (ruleId >= ISOLATION_MODE_RULE_ID_START) return 'Isolation Mode';
-    if (ruleId >= YOUTUBE_AD_RULE_ID_START) return 'YouTube Ads';
-    if (ruleId >= NETWORK_BLOCK_RULE_ID_START) return 'Network Blocklist';
-    if (ruleId >= HEURISTIC_RULE_ID_START) return 'Heuristic Engine';
-    // Check for 0 is a fallback for static rules, which don't have debug info
-    const staticRule = BUNDLED_LISTS_PRESETS.find(p => p.id === String(ruleId));
-    if (staticRule) return staticRule.name;
-
-    return 'Unknown';
+function stripRuleDecorators(value: string): string {
+    return value.replace(/^\|\|/, "").replace(/\^+$/, "").trim().toLowerCase();
 }
 
-
-function escapeRegex(str: string) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+function getStaticCoreRuleLookupKeys(value: string): string[] {
+    const stripped = stripRuleDecorators(value);
+    const normalizedDomain = normalizeDomain(value) || normalizeDomain(stripped);
+    return Array.from(new Set([
+        value.trim().toLowerCase(),
+        stripped,
+        normalizedDomain || "",
+    ].filter(Boolean)));
 }
 
-export async function applyAllRules() {
-    if (isApplyingRules) {
-        console.log("ZenithGuard: Rule application already in progress.");
-        return;
+function truncate(value: string, maxLength = 120): string {
+    return value.length > maxLength ? `${value.slice(0, maxLength - 3)}...` : value;
+}
+
+function createMatchInfo(
+    source: string,
+    category: string,
+    detail: string,
+    matchedValue?: string,
+): RuleMatchInfo {
+    return {
+        source,
+        category,
+        detail: truncate(detail),
+        matchedValue: matchedValue ? truncate(matchedValue) : undefined,
+    };
+}
+
+function getRuleValue(rule: RuleLike): string | null {
+    if (typeof rule === "string") {
+        return rule.trim() || null;
     }
-    isApplyingRules = true;
-    try {
-        // --- Get Static & Dynamic Rules ---
-        const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-        const removeRuleIds = existingRules.map(r => r.id);
 
-        // --- Get All Settings ---
-        const settings = await chrome.storage.sync.get([
-            'isHeuristicEngineEnabled', 'heuristicKeywords', 'heuristicAllowlist',
-            'networkBlocklist', 'defaultBlocklist',
-            'disabledSites', 'isUrlCleanerEnabled', 'isMalwareProtectionEnabled',
-            'isolationModeSites', 'isYouTubeAdBlockingEnabled', 'filterLists',
-            'enabledStaticRulesets',
-            'isProtectionEnabled'
-        ]) as AppSettings;
-        const { isProtectionEnabled = true } = settings;
-
-        const { protectionPausedUntil } = await chrome.storage.session.get('protectionPausedUntil') as { protectionPausedUntil?: number };
-        const isPaused = protectionPausedUntil && protectionPausedUntil > Date.now();
-
-        // Define All Native Ruleset IDs (matches manifest.json)
-        const NATIVE_RULESETS = ['easylist', 'easyprivacy', 'annoyances', 'youtube'];
-
-        // --- REFACTORED: Check for GLOBAL OFF or PAUSE ---
-        if (!isProtectionEnabled || isPaused) {
-            // 1. Remove all dynamic rules
-            if (removeRuleIds.length > 0) {
-                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds });
-            }
-            // 2. Disable all static rulesets
-            await chrome.declarativeNetRequest.updateEnabledRulesets({
-                disableRulesetIds: NATIVE_RULESETS
-            });
-
-            if (isPaused) {
-                console.log('ZenithGuard: Protection paused. All rules disabled.');
-            } else {
-                console.log('ZenithGuard: Protection globally disabled. All rules disabled.');
-            }
-            isApplyingRules = false;
-            return;
-        }
-
-        // --- 1. Manage Native Rulesets (DNR) ---
-        // Determine which static rulesets should be enabled based on settings
-        const rulesetsToEnable = new Set<string>();
-
-        // Map user's "filterLists" to native ruleset IDs
-        // Note: In v2.0 we simplify. If "EasyList" is checked in UI, we enable 'easylist' ruleset.
-        // We fallback to checking if the ID exists in enabledStaticRulesets from the UI.
-
-        const enabledIds = new Set(settings.enabledStaticRulesets || []);
-
-        // Logic: The UI sends IDs like '1' (EasyList), '2' (EasyPrivacy), '3' (Annoyances).
-        // specific mapping:
-        // '1' -> easylist
-        // '2' -> easyprivacy
-        // '3' -> annoyances
-
-        // We also check settings.isYouTubeAdBlockingEnabled
-        if (settings.isYouTubeAdBlockingEnabled) {
-            rulesetsToEnable.add('youtube');
-        }
-
-        // Logic to enable standard lists if their ID is in the enabled set or if we default to on
-        // For ZenithGuard 2.0, we can assume standard lists are enabled if not explicitly disabled or if the user selected them.
-        // The most robust way is to check the BUNDLED_LISTS_PRESETS logic or simply trust enabledStaticRulesets.
-        const enabledSetting = settings.enabledStaticRulesets;
-        const defaultOn = enabledSetting === undefined;
-
-        if (defaultOn || enabledIds.has('easylist')) rulesetsToEnable.add('easylist');
-        if (defaultOn || enabledIds.has('easyprivacy')) rulesetsToEnable.add('easyprivacy');
-        if (defaultOn || enabledIds.has('annoyances') || enabledIds.has('ublock_annoyances')) rulesetsToEnable.add('annoyances');
-
-        const enableList = Array.from(rulesetsToEnable);
-        const disableList = NATIVE_RULESETS.filter(id => !rulesetsToEnable.has(id));
-
-        await chrome.declarativeNetRequest.updateEnabledRulesets({
-            enableRulesetIds: enableList,
-            disableRulesetIds: disableList
-        });
-
-        // --- 2. Build Dynamic Rules (User Customizations Only) ---
-        let addRules: chrome.declarativeNetRequest.Rule[] = [];
-
-        // Build Allow Rules first
-        const disabledForSite = (settings.disabledSites as string[]) || [];
-        if (disabledForSite.length > 0) {
-            let allowRuleId = ALLOW_RULE_ID_START;
-            const allowRules: chrome.declarativeNetRequest.Rule[] = [];
-            for (const domain of disabledForSite) {
-                const domains = domain.startsWith('www.') ? [domain, domain.replace('www.', '')] : [domain, `www.${domain}`];
-
-                allowRules.push({
-                    id: allowRuleId++,
-                    priority: 999,
-                    action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
-                    condition: {
-                        requestDomains: domains,
-                        resourceTypes: ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other", "websocket"] as chrome.declarativeNetRequest.ResourceType[]
-                    }
-                });
-                allowRules.push({
-                    id: allowRuleId++,
-                    priority: 999,
-                    action: { type: 'allow' as chrome.declarativeNetRequest.RuleActionType },
-                    condition: {
-                        initiatorDomains: domains,
-                        resourceTypes: ["main_frame", "sub_frame", "script", "xmlhttprequest", "image", "media", "stylesheet", "other", "websocket"] as chrome.declarativeNetRequest.ResourceType[]
-                    }
-                });
-            }
-            addRules.push(...allowRules);
-        }
-
-        // Build Custom Block Rules
-        const MAX_DYNAMIC_RULES = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_RULES || 5000;
-        let availableBudget = MAX_DYNAMIC_RULES - addRules.length;
-
-        const customRulesets = [
-            getIsolationModeRules(settings.isolationModeSites),
-            await getFocusModeRules(),
-            settings.isHeuristicEngineEnabled ? getHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist || [], disabledForSite) : [],
-            getDefaultBlockRules(settings.defaultBlocklist),
-            getNetworkBlockRules(settings.networkBlocklist),
-            settings.isUrlCleanerEnabled ? getURLCleanerRules(URL_CLEANER_RULE_ID_START, []) : []
-        ];
-
-        for (const ruleset of customRulesets) {
-            if (availableBudget <= 0) break;
-            const chunk = ruleset.slice(0, availableBudget);
-            addRules.push(...chunk);
-            availableBudget -= chunk.length;
-        }
-
-        if (settings.isMalwareProtectionEnabled && availableBudget > 0) {
-            const malwareRules = await getMalwareRules(MALWARE_RULE_ID_START, [], availableBudget);
-            addRules.push(...malwareRules);
-        }
-
-        // --- 3. Apply Dynamic Changes ---
-        if (removeRuleIds.length > 0 || addRules.length > 0) {
-            await chrome.declarativeNetRequest.updateDynamicRules({
-                removeRuleIds: removeRuleIds,
-                addRules: addRules
-            });
-        }
-    } catch (e) {
-        console.error("ZenithGuard: Failed to apply dynamic rules.", e);
-    } finally {
-        isApplyingRules = false;
+    if (rule && typeof rule === "object" && typeof rule.value === "string") {
+        return rule.value.trim() || null;
     }
+
+    return null;
 }
 
-function getIsolationModeRules(sites: any[]) {
-    if (!sites) return [];
-    return sites
-        .filter(site => site.enabled)
-        .map((site, index) => ({
-            id: ISOLATION_MODE_RULE_ID_START + index,
-            priority: 1,
-            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
-            condition: {
-                initiatorDomains: [site.value],
-                domainType: 'thirdParty' as chrome.declarativeNetRequest.DomainType,
-                resourceTypes: ['script', 'object', 'sub_frame'] as chrome.declarativeNetRequest.ResourceType[]
-            }
-        }));
+function isRuleEnabled(rule: RuleLike): boolean {
+    if (typeof rule === "string") {
+        return Boolean(rule.trim());
+    }
+
+    return Boolean(rule && typeof rule === "object" && typeof rule.value === "string" && rule.enabled !== false);
 }
 
-function getHeuristicRules(keywords: any[], allowlist: any[], globalDisabledSites: string[] = []) {
-    const rules: chrome.declarativeNetRequest.Rule[] = [];
-    if (!keywords || keywords.length === 0) return rules;
+function normalizeEnabledDomains(rules: RuleLike[] | undefined): string[] {
+    return (rules || [])
+        .filter(isRuleEnabled)
+        .map((rule) => {
+            const value = getRuleValue(rule);
+            return value ? normalizeDomain(value) : null;
+        })
+        .filter((value): value is string => Boolean(value));
+}
 
-    const enabledKeywords = keywords
-        .filter(k => k.enabled)
-        .map(k => escapeRegex(k.value));
+function normalizeDisabledSites(sites: string[] | undefined): string[] {
+    return (sites || [])
+        .map((site) => normalizeDomain(site))
+        .filter((value): value is string => Boolean(value));
+}
 
-    if (enabledKeywords.length === 0) return rules;
+function normalizeAllowlistedSites(sites: string[] | undefined): string[] {
+    const normalized: string[] = [];
+    for (const site of sites || []) {
+        const candidate = normalizeDomain(site);
+        if (!candidate || listHasMatchingHostname(normalized, candidate)) {
+            continue;
+        }
+        normalized.push(candidate);
+    }
+    return normalized;
+}
 
-    const enabledAllowlistDomains = (allowlist || [])
-        .filter(r => r.enabled)
-        .map(r => r.value);
+function escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-    // Merge specific heuristic allowlist with global disabled sites
-    const excludedInitiators = [...new Set([...enabledAllowlistDomains, ...globalDisabledSites])];
-    const finalExclusions = excludedInitiators.length > 0 ? excludedInitiators : undefined;
+function heuristicFragment(value: string): string {
+    const escaped = escapeRegex(value);
+    if (/[/?=&]/.test(value)) {
+        return escaped;
+    }
+    if (/^[a-z0-9.-]+$/i.test(value) || /^[a-z0-9-]+$/i.test(value)) {
+        return `(?:^|[/?#._=-])${escaped}(?:[/?#._=-]|$)`;
+    }
+    return escaped;
+}
 
-    let currentRegexParts: string[] = [];
-    let currentRegexLength = 0;
-    let ruleCounter = 0;
+function chunkHeuristicKeywords(keywords: ToggleableRule[] | undefined): Array<{ keywords: string[]; regexFilter: string }> {
+    const enabledKeywords = (keywords || [])
+        .filter(isRuleEnabled)
+        .map((rule) => String(rule.value || "").trim())
+        .filter(Boolean)
+        .map((raw) => ({ raw, fragment: heuristicFragment(raw) }))
+        .filter((entry) => entry.fragment.length <= HEURISTIC_REGEX_MAX_LENGTH);
 
-    for (const keyword of enabledKeywords) {
-        if (keyword.length > REGEX_CHUNK_LIMIT) {
-            console.warn(`ZenithGuard: Heuristic keyword starting with "${keyword.substring(0, 50)}..." is too long and will be skipped.`);
+    const chunks: Array<{ keywords: string[]; regexFilter: string }> = [];
+    let current: Array<{ raw: string; fragment: string }> = [];
+    let currentLength = 0;
+
+    for (const entry of enabledKeywords) {
+        const wouldOverflowLength = currentLength > 0 && currentLength + entry.fragment.length + 1 > HEURISTIC_REGEX_MAX_LENGTH;
+        const wouldOverflowCount = current.length >= HEURISTIC_MAX_TERMS_PER_RULE;
+
+        if (wouldOverflowLength || wouldOverflowCount) {
+            chunks.push({
+                keywords: current.map((item) => item.raw),
+                regexFilter: current.map((item) => item.fragment).join("|"),
+            });
+            current = [entry];
+            currentLength = entry.fragment.length;
             continue;
         }
 
-        const willExceedLength = currentRegexLength > 0 && (currentRegexLength + keyword.length + 1 > REGEX_CHUNK_LIMIT);
-        const willExceedCount = currentRegexParts.length >= KEYWORD_COUNT_LIMIT;
-
-        if (willExceedLength || willExceedCount) {
-            const regexStr = currentRegexParts.join('|');
-            rules.push({
-                id: HEURISTIC_RULE_ID_START + ruleCounter++,
-                priority: 2,
-                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
-                condition: {
-                    regexFilter: regexStr,
-                    resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
-                    excludedInitiatorDomains: finalExclusions
-                }
-            });
-            currentRegexParts = [keyword];
-            currentRegexLength = keyword.length;
-        } else {
-            if (currentRegexLength > 0) currentRegexLength += 1; // for '|'
-            currentRegexParts.push(keyword);
-            currentRegexLength += keyword.length;
+        if (currentLength > 0) {
+            currentLength += 1;
         }
+        current.push(entry);
+        currentLength += entry.fragment.length;
     }
 
-    if (currentRegexParts.length > 0) {
+    if (current.length > 0) {
+        chunks.push({
+            keywords: current.map((item) => item.raw),
+            regexFilter: current.map((item) => item.fragment).join("|"),
+        });
+    }
+
+    return chunks;
+}
+
+export function buildUserAllowlistRules(allowlistedSites: string[]): chrome.declarativeNetRequest.Rule[] {
+    let nextRuleId = USER_ALLOWLIST_RULE_START_ID;
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
+
+    for (const site of allowlistedSites) {
+        const domains = site.startsWith("www.") ? [site, site.replace(/^www\./, "")] : [site, `www.${site}`];
         rules.push({
-            id: HEURISTIC_RULE_ID_START + ruleCounter,
-            priority: 2,
-            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
+            id: nextRuleId++,
+            priority: 1_000,
+            action: { type: "allowAllRequests" },
             condition: {
-                regexFilter: currentRegexParts.join('|'),
-                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[],
-                excludedInitiatorDomains: finalExclusions
-            }
+                requestDomains: domains,
+                resourceTypes: [DNR.MAIN_FRAME, DNR.SUB_FRAME],
+            },
+        });
+        rules.push({
+            id: nextRuleId++,
+            priority: 999,
+            action: { type: "allow" },
+            condition: {
+                requestDomains: domains,
+                resourceTypes: ALL_RESOURCE_TYPES,
+            },
+        });
+        rules.push({
+            id: nextRuleId++,
+            priority: 999,
+            action: { type: "allow" },
+            condition: {
+                initiatorDomains: domains,
+                resourceTypes: ALL_RESOURCE_TYPES,
+            },
         });
     }
 
     return rules;
 }
 
-function getDefaultBlockRules(blocklist: any[]) {
-    if (!blocklist) return [];
-    return blocklist
-        .filter(item => item.enabled)
-        .map((item, index) => {
-            const isRegex = item.value.startsWith('/') && (item.value.endsWith('/') || item.value.endsWith('/i'));
-
-            const condition = isRegex
-                ? { regexFilter: item.value.slice(1, -1), resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest'] as chrome.declarativeNetRequest.ResourceType[] }
-                : { urlFilter: item.value, resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other'] as chrome.declarativeNetRequest.ResourceType[] };
-
-            return {
-                id: DEFAULT_BLOCKLIST_RULE_ID_START + index,
-                priority: 2,
-                action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
-                condition: condition
-            };
-        });
+export function buildIsolationModeRules(rules: Array<ToggleableRule | string> | undefined): chrome.declarativeNetRequest.Rule[] {
+    return normalizeEnabledDomains(rules)
+        .map((domain, index) => ({
+            id: ISOLATION_MODE_RULE_START_ID + index,
+            priority: 1,
+            action: { type: "block" },
+            condition: {
+                initiatorDomains: domain.startsWith("www.")
+                    ? [domain, domain.replace(/^www\./, "")]
+                    : [domain, `www.${domain}`],
+                domainType: "thirdParty",
+                resourceTypes: ISOLATION_RESOURCE_TYPES,
+            },
+        }));
 }
 
-function getNetworkBlockRules(blocklist: any[]) {
-    if (!blocklist) return [];
-    return blocklist
-        .filter(item => item.enabled)
-        .map((item, index) => ({
-            id: NETWORK_BLOCK_RULE_ID_START + index,
-            priority: 1, // This is high priority for user rules
-            action: { type: 'block' as chrome.declarativeNetRequest.RuleActionType },
+function buildHeuristicRules(
+    keywords: ToggleableRule[] | undefined,
+    allowlist: ToggleableRule[] | undefined,
+    disabledSites: string[],
+): chrome.declarativeNetRequest.Rule[] {
+    const chunks = chunkHeuristicKeywords(keywords);
+    if (chunks.length === 0) {
+        return [];
+    }
+
+    const excludedInitiatorDomains = [
+        ...normalizeEnabledDomains(allowlist),
+        ...disabledSites,
+    ];
+
+    return chunks.map((chunk, index) => ({
+        id: HEURISTIC_RULE_START_ID + index,
+        priority: 2,
+        action: { type: "block" },
+        condition: {
+            regexFilter: chunk.regexFilter,
+            domainType: "thirdParty",
+            resourceTypes: HEURISTIC_RESOURCE_TYPES,
+            excludedInitiatorDomains: excludedInitiatorDomains.length > 0 ? excludedInitiatorDomains : undefined,
+        },
+    }));
+}
+
+function buildNetworkBlocklistRules(rules: Array<ToggleableRule | string> | undefined): chrome.declarativeNetRequest.Rule[] {
+    return normalizeEnabledDomains(rules)
+        .map((domain, index) => ({
+            id: NETWORK_BLOCKLIST_RULE_START_ID + index,
+            priority: 1,
+            action: { type: "block" },
             condition: {
-                urlFilter: `||${item.value}^`,
-                resourceTypes: ['main_frame', 'sub_frame', 'script', 'xmlhttprequest', 'image', 'media', 'websocket', 'other'] as chrome.declarativeNetRequest.ResourceType[]
-            }
+                urlFilter: `||${domain}^`,
+                resourceTypes: ALL_RESOURCE_TYPES_WITH_OBJECT,
+            },
         }));
+}
+
+function buildYoutubeDynamicRules(payload: Awaited<ReturnType<typeof getDynamicYoutubeRuleOverrides>>): chrome.declarativeNetRequest.Rule[] {
+    if (!payload) {
+        return [];
+    }
+
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
+    let offset = 0;
+
+    for (const regexFilter of payload.regexFilters || []) {
+        rules.push({
+            id: YOUTUBE_DYNAMIC_RULE_START_ID + offset++,
+            priority: 2,
+            action: { type: "block" },
+            condition: {
+                regexFilter,
+                resourceTypes: URL_FILTER_RESOURCE_TYPES,
+            },
+        });
+    }
+
+    for (const urlFilter of payload.urlFilters || []) {
+        rules.push({
+            id: YOUTUBE_DYNAMIC_RULE_START_ID + offset++,
+            priority: 2,
+            action: { type: "block" },
+            condition: {
+                urlFilter,
+                resourceTypes: YOUTUBE_RESOURCE_TYPES,
+            },
+        });
+    }
+
+    return rules;
+}
+
+export function buildMalwareRules(
+    domains: string[],
+    disabledSites: string[],
+    budget: number,
+): chrome.declarativeNetRequest.Rule[] {
+    if (domains.length === 0 || budget <= 0) {
+        return [];
+    }
+
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
+    const blockedPageUrl = chrome.runtime.getURL("src/pages/blocked.html");
+
+    for (let index = 0; index < domains.length; index += MALWARE_RULE_CHUNK_SIZE) {
+        if (rules.length >= budget) {
+            console.warn(`ZenithGuard: Malware protection rule budget (${budget}) reached. Not all malware domains will be loaded.`);
+            break;
+        }
+
+        const chunk = domains.slice(index, index + MALWARE_RULE_CHUNK_SIZE);
+        rules.push({
+            id: MALWARE_RULE_START_ID + rules.length,
+            priority: 1,
+            action: {
+                type: "redirect",
+                redirect: { url: blockedPageUrl },
+            },
+            condition: {
+                requestDomains: chunk,
+                resourceTypes: ["main_frame"],
+                excludedInitiatorDomains: disabledSites.length > 0 ? disabledSites : undefined,
+                excludedRequestDomains: disabledSites.length > 0 ? disabledSites : undefined,
+            },
+        });
+    }
+
+    return rules;
+}
+
+function buildDisabledCoreRuleIds(defaultBlocklist: Array<ToggleableRule | string> | undefined): number[] {
+    const ruleIdsByLookupKey = new Map<string, number>();
+    DEFAULT_BLOCKLIST.forEach((rule, index) => {
+        for (const key of getStaticCoreRuleLookupKeys(rule.value)) {
+            ruleIdsByLookupKey.set(key, BUILT_IN_RULE_START_ID + index);
+        }
+    });
+
+    const disabledRuleIds = new Set<number>();
+    for (const rule of defaultBlocklist || []) {
+        if (typeof rule !== "object" || !rule || rule.enabled !== false) {
+            continue;
+        }
+
+        const value = getRuleValue(rule);
+        if (!value) {
+            continue;
+        }
+
+        for (const key of getStaticCoreRuleLookupKeys(value)) {
+            const ruleId = ruleIdsByLookupKey.get(key);
+            if (typeof ruleId === "number") {
+                disabledRuleIds.add(ruleId);
+                break;
+            }
+        }
+    }
+
+    return Array.from(disabledRuleIds).sort((left, right) => left - right);
+}
+
+async function syncCoreRulesetState(enabled: boolean, defaultBlocklist: Array<ToggleableRule | string> | undefined): Promise<void> {
+    const [enabledRulesets, disabledRuleIds] = await Promise.all([
+        chrome.declarativeNetRequest.getEnabledRulesets(),
+        chrome.declarativeNetRequest.getDisabledRuleIds({ rulesetId: CORE_RULESET_ID }),
+    ]);
+
+    const shouldDisableRuleIds = buildDisabledCoreRuleIds(defaultBlocklist);
+    const isCoreRulesetEnabled = enabledRulesets.includes(CORE_RULESET_ID);
+
+    if (isCoreRulesetEnabled !== enabled) {
+        await chrome.declarativeNetRequest.updateEnabledRulesets({
+            enableRulesetIds: enabled ? [CORE_RULESET_ID] : [],
+            disableRulesetIds: enabled ? [] : [CORE_RULESET_ID],
+        });
+    }
+
+    const sortedCurrent = [...disabledRuleIds].sort((left, right) => left - right);
+    const sameDisabledSet = sortedCurrent.length === shouldDisableRuleIds.length
+        && sortedCurrent.every((value, index) => value === shouldDisableRuleIds[index]);
+
+    if (!sameDisabledSet) {
+        await chrome.declarativeNetRequest.updateStaticRules({
+            rulesetId: CORE_RULESET_ID,
+            disableRuleIds: shouldDisableRuleIds.filter((ruleId) => !sortedCurrent.includes(ruleId)),
+            enableRuleIds: sortedCurrent.filter((ruleId) => !shouldDisableRuleIds.includes(ruleId)),
+        });
+    }
+}
+
+async function syncYoutubeRulesetState(enabled: boolean): Promise<void> {
+    const enabledRulesets = await chrome.declarativeNetRequest.getEnabledRulesets();
+    const isEnabled = enabledRulesets.includes(YOUTUBE_RULESET_ID);
+
+    if (isEnabled === enabled) {
+        return;
+    }
+
+    await chrome.declarativeNetRequest.updateEnabledRulesets({
+        enableRulesetIds: enabled ? [YOUTUBE_RULESET_ID] : [],
+        disableRulesetIds: enabled ? [] : [YOUTUBE_RULESET_ID],
+    });
+}
+
+type BudgetedRulePushResult = {
+    addedRules: chrome.declarativeNetRequest.Rule[];
+    remainingBudget: number;
+};
+
+function pushRulesWithinBudget(
+    target: chrome.declarativeNetRequest.Rule[],
+    additions: chrome.declarativeNetRequest.Rule[],
+    remainingBudget: number,
+): BudgetedRulePushResult {
+    if (remainingBudget <= 0 || additions.length === 0) {
+        return {
+            addedRules: [],
+            remainingBudget,
+        };
+    }
+
+    const allowedRules = additions.slice(0, remainingBudget);
+    target.push(...allowedRules);
+    return {
+        addedRules: allowedRules,
+        remainingBudget: remainingBudget - allowedRules.length,
+    };
+}
+
+function pushRuleGroupsWithinBudget(
+    target: chrome.declarativeNetRequest.Rule[],
+    additions: chrome.declarativeNetRequest.Rule[],
+    remainingBudget: number,
+    groupSize: number,
+): BudgetedRulePushResult {
+    if (remainingBudget <= 0 || additions.length === 0 || groupSize <= 0) {
+        return {
+            addedRules: [],
+            remainingBudget,
+        };
+    }
+
+    const allowedCount = Math.floor(Math.min(additions.length, remainingBudget) / groupSize) * groupSize;
+    const allowedRules = additions.slice(0, allowedCount);
+    target.push(...allowedRules);
+    return {
+        addedRules: allowedRules,
+        remainingBudget: remainingBudget - allowedRules.length,
+    };
+}
+
+function addRuleMetadata(
+    metadata: Map<number, RuleMatchInfo>,
+    rules: chrome.declarativeNetRequest.Rule[],
+    toMatchInfo: (rule: chrome.declarativeNetRequest.Rule) => RuleMatchInfo,
+): void {
+    for (const rule of rules) {
+        metadata.set(rule.id, toMatchInfo(rule));
+    }
+}
+
+export type ApplyRulesResult = {
+    dynamicRuleCount: number;
+    staticCoreEnabled: boolean;
+    youtubeRulesEnabled: boolean;
+};
+
+export async function applyRules(): Promise<ApplyRulesResult> {
+    const existingDynamicRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const settings = await getSync<RuleSettingsSnapshot>([
+        "isHeuristicEngineEnabled",
+        "heuristicKeywords",
+        "heuristicAllowlist",
+        "networkBlocklist",
+        "defaultBlocklist",
+        "disabledSites",
+        "isUrlCleanerEnabled",
+        "isMalwareProtectionEnabled",
+        "isolationModeSites",
+        "isYouTubeAdBlockingEnabled",
+        "isProtectionEnabled",
+    ]);
+    const { sessionAllowlist } = await getSession<{ sessionAllowlist?: string[] }>("sessionAllowlist");
+    const { protectionPausedUntil } = await getLocal<{ protectionPausedUntil?: number }>("protectionPausedUntil");
+    const isProtectionPaused = Boolean(protectionPausedUntil && protectionPausedUntil > Date.now());
+    const protectionEnabled = settings.isProtectionEnabled !== false && !isProtectionPaused;
+    const youtubeEnabled = protectionEnabled && settings.isYouTubeAdBlockingEnabled !== false;
+
+    await syncCoreRulesetState(protectionEnabled, settings.defaultBlocklist);
+    await syncYoutubeRulesetState(youtubeEnabled);
+
+    if (!protectionEnabled) {
+        if (existingDynamicRules.length > 0) {
+            await chrome.declarativeNetRequest.updateDynamicRules({
+                removeRuleIds: existingDynamicRules.map((rule) => rule.id),
+                addRules: [],
+            });
+        }
+        clearDynamicRuleMetadata();
+        console.info(
+            isProtectionPaused
+                ? "ZenithGuard: Protection paused. All dynamic rules disabled."
+                : "ZenithGuard: Protection globally disabled. All dynamic rules disabled.",
+        );
+        return {
+            dynamicRuleCount: 0,
+            staticCoreEnabled: false,
+            youtubeRulesEnabled: false,
+        };
+    }
+
+    const dynamicRules: chrome.declarativeNetRequest.Rule[] = [];
+    const dynamicMetadata = new Map<number, RuleMatchInfo>();
+    const disabledSites = normalizeDisabledSites(settings.disabledSites);
+    const allowlistedSites = normalizeAllowlistedSites([...(sessionAllowlist || []), ...disabledSites]);
+    const maxDynamicRules = chrome.declarativeNetRequest.MAX_NUMBER_OF_DYNAMIC_RULES || 5_000;
+    let remainingBudget = maxDynamicRules;
+
+    const userAllowlistRules = buildUserAllowlistRules(allowlistedSites);
+    const userAllowlistPush = pushRuleGroupsWithinBudget(
+        dynamicRules,
+        userAllowlistRules,
+        remainingBudget,
+        USER_ALLOWLIST_RULES_PER_SITE,
+    );
+    remainingBudget = userAllowlistPush.remainingBudget;
+    if (userAllowlistPush.addedRules.length < userAllowlistRules.length) {
+        console.warn(
+            `ZenithGuard: Dynamic rule budget reached while adding user allowlist rules. Applied ${userAllowlistPush.addedRules.length} of ${userAllowlistRules.length}.`,
+        );
+        remainingBudget = 0;
+    }
+    addRuleMetadata(dynamicMetadata, userAllowlistPush.addedRules, (rule) => {
+        const site = rule.condition.requestDomains?.[0] || rule.condition.initiatorDomains?.[0] || "site";
+        return createMatchInfo("User Allowlist", "User", `Protection was paused for ${site}.`, site);
+    });
+
+    const isolationRules = buildIsolationModeRules(settings.isolationModeSites);
+
+    const heuristicChunks = chunkHeuristicKeywords(settings.heuristicKeywords);
+    const heuristicRules = settings.isHeuristicEngineEnabled !== false
+        ? buildHeuristicRules(settings.heuristicKeywords, settings.heuristicAllowlist, allowlistedSites)
+        : [];
+
+    const youtubeOverridePayload = youtubeEnabled ? await getDynamicYoutubeRuleOverrides() : null;
+    const youtubeRules = buildYoutubeDynamicRules(youtubeOverridePayload);
+
+    const networkBlockRules = buildNetworkBlocklistRules(settings.networkBlocklist);
+
+    const focusModeRules = await createFocusModeRules();
+
+    const budgetedRuleSets: Array<{
+        name: string;
+        rules: chrome.declarativeNetRequest.Rule[];
+        toMatchInfo: (rule: chrome.declarativeNetRequest.Rule) => RuleMatchInfo;
+    }> = [
+        {
+            name: "Focus Mode",
+            rules: focusModeRules,
+            toMatchInfo: (rule) => {
+                const matchedValue = rule.condition.urlFilter?.replace(/^\|\|/, "") || rule.condition.requestDomains?.[0] || "";
+                return createMatchInfo("Focus Mode", "Productivity", `Redirected focus-mode navigation for ${matchedValue}.`, matchedValue);
+            },
+        },
+        {
+            name: "Isolation Mode",
+            rules: isolationRules,
+            toMatchInfo: (rule) => {
+                const site = rule.condition.initiatorDomains?.[0] || "site";
+                return createMatchInfo("Isolation Mode", "Privacy", `Blocked third-party resources while isolating ${site}.`, site);
+            },
+        },
+        {
+            name: "Heuristic Engine",
+            rules: heuristicRules,
+            toMatchInfo: (rule) => {
+                const chunkIndex = rule.id - HEURISTIC_RULE_START_ID;
+                const chunk = heuristicChunks[chunkIndex];
+                const matched = chunk ? chunk.keywords.join(", ") : "heuristic";
+                return createMatchInfo("Heuristic Engine", "Heuristic", `Matched heuristic keywords: ${matched}`, matched);
+            },
+        },
+        {
+            name: "YouTube Ads",
+            rules: youtubeRules,
+            toMatchInfo: (rule) => {
+                const matchedValue = rule.condition.regexFilter ? `/${rule.condition.regexFilter}/` : rule.condition.urlFilter || "YouTube filter";
+                return createMatchInfo("YouTube Ads", "Media", `Matched dynamic YouTube override: ${matchedValue}`, matchedValue);
+            },
+        },
+        {
+            name: "Network Blocklist",
+            rules: networkBlockRules,
+            toMatchInfo: (rule) => {
+                const matchedValue = rule.condition.urlFilter?.replace(/^\|\|/, "").replace(/\^$/, "") || "";
+                return createMatchInfo("Network Blocklist", "User", `Matched user block rule: ${matchedValue}`, matchedValue);
+            },
+        },
+    ];
+
+    for (const ruleSet of budgetedRuleSets) {
+        const rulePush = pushRulesWithinBudget(dynamicRules, ruleSet.rules, remainingBudget);
+        remainingBudget = rulePush.remainingBudget;
+        if (rulePush.addedRules.length < ruleSet.rules.length) {
+            console.warn(
+                `ZenithGuard: Dynamic rule budget reached while adding ${ruleSet.name} rules. Applied ${rulePush.addedRules.length} of ${ruleSet.rules.length}.`,
+            );
+        }
+        addRuleMetadata(dynamicMetadata, rulePush.addedRules, ruleSet.toMatchInfo);
+    }
+
+    if (settings.isMalwareProtectionEnabled !== false && remainingBudget > 0) {
+        const malwareRules = buildMalwareRules(await getMergedMalwareDomains(), allowlistedSites, remainingBudget);
+        addRuleMetadata(dynamicMetadata, malwareRules, (rule) => {
+            const domainCount = rule.condition.requestDomains?.length || 0;
+            return createMatchInfo(
+                "Malware Protection",
+                "Security",
+                domainCount > 0
+                    ? `Matched a malware-domain ruleset chunk (${domainCount} domains).`
+                    : "Known malware or hostile-domain redirect protection.",
+            );
+        });
+        dynamicRules.push(...malwareRules);
+    }
+
+    const dedupedDynamicRules = Array.from(new Map(dynamicRules.map((rule) => [rule.id, rule])).values());
+    await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: existingDynamicRules.map((rule) => rule.id),
+        addRules: dedupedDynamicRules,
+    });
+
+    setDynamicRuleMetadata(dynamicMetadata);
+    console.info(`ZenithGuard: Applying ${dedupedDynamicRules.length} dynamic rules.`);
+
+    return {
+        dynamicRuleCount: dedupedDynamicRules.length,
+        staticCoreEnabled: true,
+        youtubeRulesEnabled: youtubeEnabled,
+    };
 }

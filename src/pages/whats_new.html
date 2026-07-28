@@ -1,97 +1,14 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>ZenithGuard - What's New</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/whats_new.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenithGuard - What's New</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/whats_new.css">
+    <script type="module" src="/src/ui/whats_new/main.ts"></script>
 </head>
-
 <body>
-    <div class="container">
-        <header class="header">
-            <img src="../icons/icon48.png" alt="ZenithGuard Logo">
-            <h1>What's New in ZenithGuard</h1>
-            <span id="version-badge" class="version-badge">v2.2.0</span>
-        </header>
-
-        <section class="changelog">
-            <h2>Version 2.4.0 - The Precision Update</h2>
-
-            <div class="change-item">
-                <div class="change-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12,18H6V14H12V18M21,14H12V12H21V14M21,10H12V8H21V10M21,6H12V4H21V6M21,18H14V16H21V18M6,10V4H10V10H6M6,12H10V18H6V12Z" />
-                    </svg>
-                </div>
-                <div class="change-content">
-                    <h3>Gist Rules - Always Latest</h3>
-                    <p>
-                        We've improved the dynamic rule synchronization. ZenithGuard now automatically detects and
-                        migrates to "Always Latest" Gist URLs, ensuring your trackers and YouTube rules are always
-                        up-to-the-minute without pinning to old versions.
-                    </p>
-                </div>
-            </div>
-
-            <div class="change-item">
-                <div class="change-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" />
-                    </svg>
-                </div>
-                <div class="change-content">
-                    <h3>Redundancy Cleanup</h3>
-                    <p>
-                        The "Subscriptions" tab is now cleaner! We've removed the redundant manual EasyList entry as
-                        it's
-                        now handled directly by our "Built-in" ruleset architecture, saving you memory and loading time.
-                    </p>
-                </div>
-            </div>
-
-            <div class="change-item">
-                <div class="change-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M17,11C17,14.42 14.84,17.44 12,18.83C9.16,17.44 7,14.42 7,11V6.3L12,3.8L17,6.3V11Z" />
-                    </svg>
-                </div>
-                <div class="change-content">
-                    <h3>Zombie Script Protection</h3>
-                    <p>
-                        Improved robustness for long-lived pages like YouTube Live Streams. Legacy scripts now
-                        gracefully retire when the extension is updated, preventing "Context Invalidated" console
-                        errors and keeping your browser console clean.
-                    </p>
-                </div>
-            </div>
-
-            <div class="change-item">
-                <div class="change-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-                        <path
-                            d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5Z" />
-                    </svg>
-                </div>
-                <div class="change-content">
-                    <h3>Pro Codebase Audit</h3>
-                    <p>
-                        A total audit of all 23 active modules. We've removed deprecated logic and optimized internal
-                        import flows for maximum performance and future-proofing.
-                    </p>
-                </div>
-            </div>
-
-        </section>
-
-        <footer class="footer">
-            <button id="close-btn" class="btn-primary">Awesome!</button>
-        </footer>
-    </div>
-    <script type="module" src="../js/whats_new/whats_new.js"></script>
+    <div id="app"></div>
 </body>
-
 </html>

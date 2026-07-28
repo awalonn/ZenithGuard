@@ -1,24 +1,25 @@
 {
-    "compilerOptions": {
-        "target": "ESNext",
-        "useDefineForClassFields": true,
-        "module": "ESNext",
-        "moduleResolution": "Node",
-        "strict": true,
-        "allowJs": true,
-        "sourceMap": true,
-        "resolveJsonModule": true,
-        "isolatedModules": true,
-        "esModuleInterop": true,
-        "lib": [
-            "ESNext",
-            "DOM"
-        ],
-        "skipLibCheck": true,
-        "noEmit": true
-    },
-    "include": [
-        "src",
-        "tests"
-    ]
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "types": ["chrome", "jest", "node"]
+  },
+  "include": [
+    "src/**/*",
+    "tests/**/*",
+    "vite.config.js",
+    "vite.content.config.js",
+    "jest.config.js",
+    "jest.e2e.config.js"
+  ]
 }

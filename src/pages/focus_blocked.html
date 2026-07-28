@@ -1,93 +1,25 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Focus Mode Active</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/shared.css">
-    <style>
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            text-align: center;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow: hidden;
-        }
-
-        .container {
-            max-width: 500px;
-            padding: 40px;
-        }
-
-        .icon {
-            width: 80px;
-            height: 80px;
-            color: var(--accent-primary);
-            margin-bottom: 20px;
-            animation: pulse-glow 2s infinite;
-        }
-
-        h1 {
-            font-size: 32px;
-            font-weight: 700;
-            margin-bottom: 16px;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        p {
-            font-size: 16px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-            line-height: 1.6;
-        }
-
-        .quote {
-            font-style: italic;
-            color: var(--text-muted);
-            margin-bottom: 40px;
-            border-left: 3px solid var(--accent-primary);
-            padding-left: 16px;
-            text-align: left;
-        }
-
-        .btn {
-            background: var(--bg-secondary);
-            border: 1px solid var(--bg-glass-border);
-            color: var(--text-primary);
-            padding: 12px 24px;
-            border-radius: var(--radius-full);
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: var(--transition-normal);
-        }
-
-        .btn:hover {
-            background: var(--bg-glass-hover);
-            border-color: var(--accent-primary);
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenithGuard - Focus Mode Active</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/blocked.css">
+    <script type="module" src="/src/js/blocked/blocked.ts"></script>
 </head>
-
-<body>
-    <div class="glass-card container">
-        <svg class="icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
-            <path
-                d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z" />
-        </svg>
-        <h1>Focus Mode Active</h1>
-        <p>This site is blocked because you are currently in Focus Mode. Stay on task!</p>
-        <div class="quote">“The successful warrior is the average man, with laser-like focus.” — Bruce Lee</div>
-        <a href="#" id="go-back-btn" class="btn">Go Back</a>
+<body data-mode="focus">
+    <div class="blocked-shell">
+        <header class="blocked-header">
+            <img src="/icons/icon48.png" alt="ZenithGuard Logo">
+            <h1>ZenithGuard</h1>
+        </header>
+        <main class="blocked-card">
+            <div id="blocked-icon" class="blocked-icon" aria-hidden="true"></div>
+            <h2 id="blocked-title" class="blocked-title">Focus Mode Active</h2>
+            <p id="blocked-copy" class="blocked-copy"></p>
+        </main>
+        <button id="blocked-back-btn" class="blocked-button" type="button">Go Back Safely</button>
     </div>
-    <script type="module" src="../js/pages/focus_blocked.ts"></script>
 </body>
-
 </html>

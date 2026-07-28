@@ -1,73 +1,101 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Welcome to ZenithGuard</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/welcome.css">
-    <link rel="stylesheet" href="../css/toast.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ZenithGuard</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/toast.css">
+    <link rel="stylesheet" href="/css/welcome.css">
+    <script type="module" src="/src/js/welcome/welcome.ts"></script>
 </head>
-
 <body>
     <div class="welcome-card">
         <div class="logo-container">
-            <img src="../icons/icon128.png" alt="ZenithGuard Logo">
+            <img src="/icons/icon128.png" alt="ZenithGuard Logo">
         </div>
+        <div class="eyebrow">ZenithGuard setup</div>
         <h1>Welcome to ZenithGuard</h1>
-        <p class="subtitle">Your browsing is now cleaner, safer, and faster.</p>
+        <p class="subtitle">Core protection is already on. If you want, you can enable Gemini-powered AI tools now or skip and add them later.</p>
+
+        <div class="summary-strip">
+            <div class="summary-card">
+                <span>Protection</span>
+                <strong>Already active</strong>
+            </div>
+            <div class="summary-card">
+                <span>AI setup</span>
+                <strong>Optional</strong>
+            </div>
+            <div class="summary-card">
+                <span>Next step</span>
+                <strong>Start browsing</strong>
+            </div>
+        </div>
 
         <div class="features-grid">
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" />
                 </svg>
-                <span>Ad & Tracker Blocking</span>
+                <div>
+                    <strong>Ad & tracker blocking</strong>
+                    <span>Cleaner pages with less noise and fewer obvious trackers.</span>
+                </div>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" />
+                    <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4Z" />
                 </svg>
-                <span>AI Privacy Analysis</span>
+                <div>
+                    <strong>AI privacy analysis</strong>
+                    <span>Optional page scans and summaries when you add a Gemini key.</span>
+                </div>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M13,2V13H22L11,22V11H2L13,2Z" />
                 </svg>
-                <span>Element Zapper</span>
+                <div>
+                    <strong>Element zapper</strong>
+                    <span>Quickly remove annoying UI without digging through settings.</span>
+                </div>
             </div>
             <div class="feature-item">
                 <svg class="feature-icon" viewBox="0 0 24 24" fill="currentColor">
-                    <path
-                        d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V13H11V7M11,15H13V17H11V15Z" />
+                    <path d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V13H11V7M11,15H13V17H11V15Z" />
                 </svg>
-                <span>Malware Protection</span>
+                <div>
+                    <strong>Malware protection</strong>
+                    <span>Extra guardrails for riskier pages and hostile patterns.</span>
+                </div>
             </div>
         </div>
 
         <div class="api-section">
-            <h3>Enable AI Features</h3>
-            <p>To use AI Analysis, Cookie Consent, and Self-Healing Rules, you need a free Google Gemini API key.</p>
+            <h3>Optional: enable AI features now</h3>
+            <p>To use AI Analysis, Cookie Consent, and Self-Healing Rules, add a Google Gemini API key now. You can also skip this and keep using ZenithGuard without AI.</p>
+            <div class="api-note">
+                <strong>Useful if you want:</strong>
+                <span>AI page analysis, natural-language hiding, and privacy-policy summaries.</span>
+            </div>
             <div class="input-group">
                 <input type="password" id="api-key-input" placeholder="Paste your Gemini API Key here">
             </div>
-            <p style="margin-top: 0.5rem; font-size: 0.75rem;">
-                Don't have one? <a href="https://aistudio.google.com/app/apikey" target="_blank"
-                    style="color: var(--accent-primary);">Get it for free here</a>.
+            <p class="api-help">
+                Need a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Get one from Google AI Studio</a>.
+            </p>
+            <p class="api-help">
+                Your Gemini key stays in this browser profile. AI requests send
+                page screenshots plus stripped page/request context to Google
+                only when you use Gemini features.
             </p>
         </div>
 
-        <button id="save-start-btn" class="btn-primary">Save & Start Browsing</button>
-        <a href="#" id="skip-link" class="skip-link">Skip for now (I'll add it later)</a>
+        <button id="save-start-btn" class="btn-primary">Save Key & Continue</button>
+        <a href="#" id="skip-link" class="skip-link">Continue without AI for now</a>
     </div>
 
     <div id="zg-toast-container"></div>
-    <!-- toast.js is imported by welcome.js -->
-    <script type="module" src="../js/welcome/welcome.js"></script>
 </body>
-
 </html>

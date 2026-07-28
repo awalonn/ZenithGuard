@@ -1,229 +1,374 @@
+import { getLocal, getSync } from "../shared/storage_api";
+import { addToNetworkBlocklist, getNetworkLog, sendMessageSafely, selfHealRule } from "../shared/runtime_messages";
+import { findMatchingRecordEntry, findMatchingRecordValue, listHasMatchingHostname } from "../shared/hostname_matching";
+import { normalizeCustomHidingRuleBuckets } from "../shared/site_bucket_maps";
+import { AiHider } from "./modules/AiHider";
+import { BreachWarning } from "./modules/BreachWarning";
+import { CosmeticFilter } from "./modules/CosmeticFilter";
+import { Inspector } from "./modules/Inspector";
+import { NextGenCleaner } from "./modules/NextGenCleaner";
+import { PopupGuard } from "./modules/PopupGuard";
+import { RedditMediaGuard } from "./modules/RedditMediaGuard";
+import { clearProcessingToast, consumeTargetingContextMenuEvent } from "./modules/tool_runtime";
+import { YouTubeGuard } from "./modules/YouTubeGuard";
+import { Zapper } from "./modules/Zapper";
+import { installToastUtils, showToast } from "./modules/toast";
+import { generateUniqueSelector } from "./modules/selector";
+import { validateContentMessage } from "../shared/content_messages";
 
-import { AppSettings, HidingRule } from '../types.js';
-import { YouTubeProtector } from './modules/YouTubeProtector.js';
-import { SecurityGuard } from './modules/SecurityGuard.js';
-import { CosmeticFilter } from './modules/CosmeticFilter.js';
-import { CookieHandler } from './modules/CookieHandler.js';
+function hasActiveRuntimeContext(): boolean {
+    return typeof chrome.runtime?.id === "string" && chrome.runtime.id.length > 0;
+}
 
-(async () => {
-    // --- State & Modules ---
-    const securityGuard = new SecurityGuard();
-    const cosmeticFilter = new CosmeticFilter();
-    const cookieHandler = new CookieHandler();
-    const youtubeProtector = YouTubeProtector.getInstance(); // Singleton
+function isAuthorizedSender(sender: chrome.runtime.MessageSender): boolean {
+    const extensionRoot = chrome.runtime.getURL("");
+    return sender.id === chrome.runtime.id || typeof sender.url === "string" && sender.url.startsWith(extensionRoot) || typeof sender.tab?.id === "number";
+}
 
-    // --- Context Health Check ---
-    const isContextValid = () => {
-        return !!chrome.runtime?.id;
-    };
-
-    const PROCESSING_TOAST_ID = 'zg-processing-toast';
-    let isPerformanceModeEnabled = false;
-
-    // --- Message Listener ---
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        const actions: Record<string, (req: any) => void> = {
-            'START_INSPECTOR_MODE': () => window.ZenithGuardInspector.start((s) => cosmeticFilter.saveHidingRule(s)),
-            'START_ZAPPER_MODE': () => window.ZenithGuardZapper.start((s) => cosmeticFilter.saveHidingRule(s)),
-            'QUICK_HIDE_ELEMENT': (req) => quickHideElement(req.targetElementId),
-            'START_AI_HIDING_TARGETED': (req) => startTargetedAIHider(req.targetElementId),
-            'PREVIEW_ELEMENT': (req) => cosmeticFilter.previewElement(req.selector, true),
-            'CLEAR_PREVIEW': () => cosmeticFilter.previewElement(null, false),
-            'PREVIEW_MANUAL_RULE': (req) => cosmeticFilter.previewManualRule(req.selector),
-            'REAPPLY_HIDING_RULES': () => reapplyAllHidingRules(false),
-            'EXECUTE_ADBLOCK_WALL_FIX': (req) => {
-                console.log("ZenithGuard: Received EXECUTE_ADBLOCK_WALL_FIX message:", req.selectors);
-                cosmeticFilter.executeAdblockWallFix(req.selectors);
-            },
-            'SHOW_PROCESSING_TOAST': (req) => showToast({ message: req.message, type: 'loading', id: PROCESSING_TOAST_ID, duration: 0 }),
-            'SHOW_ERROR_TOAST': (req) => {
-                const existingToast = document.getElementById(PROCESSING_TOAST_ID);
-                if (existingToast) existingToast.remove();
-                showToast({ message: req.message, type: 'error' });
-            },
-            'SHOW_BREACH_WARNING': () => securityGuard.setBreached(true)
-        };
-
-        const action = actions[request.type];
-        if (action) {
-            action(request);
-            sendResponse({ success: true });
+async function applyRecoveredState(filter: CosmeticFilter): Promise<void> {
+    try {
+        if (!hasActiveRuntimeContext()) {
+            return;
         }
-        return true;
-    });
 
-    // --- Core Orchestration ---
-    async function reapplyAllHidingRules(isInitialLoad = false) {
+        const hostname = window.location.hostname;
+        const [snapshot, localSnapshot] = await Promise.all([
+            getSync<{
+                customHidingRules?: Record<string, Array<{ value: string; enabled?: boolean; lastHealed?: number; lastHealAttempt?: number }>>;
+                isSandboxedIframeEnabled?: boolean;
+                isSelfHealingEnabled?: boolean;
+                disabledSites?: string[];
+                isProtectionEnabled?: boolean;
+                persistentWallFixes?: Record<string, { enabled?: boolean; overlaySelector?: string; scrollSelector?: string; contentUnlockSelector?: string }>;
+                isNextGenAIEradicatorEnabled?: boolean;
+            }>([
+                "customHidingRules",
+                "isSandboxedIframeEnabled",
+                "isSelfHealingEnabled",
+                "disabledSites",
+                "isProtectionEnabled",
+                "persistentWallFixes",
+                "isNextGenAIEradicatorEnabled",
+            ]),
+            getLocal<{
+                temporaryWallFixes?: Record<string, { overlaySelector?: string; scrollSelector?: string; contentUnlockSelector?: string }>;
+            }>("temporaryWallFixes"),
+        ]);
+
+        const disabledSites = Array.isArray(snapshot.disabledSites) ? snapshot.disabledSites : [];
+        const protectionEnabled = snapshot.isProtectionEnabled !== false && !listHasMatchingHostname(disabledSites, hostname);
+        const nextGenEnabled = snapshot.isNextGenAIEradicatorEnabled !== false;
+        window.ZenithGuard_ProtectionEnabled = protectionEnabled;
+
+        if (!protectionEnabled) {
+            filter.stop();
+            youTubeGuard?.stop();
+            nextGenCleaner.stop();
+            redditMediaGuard.stop();
+            popupGuard.stop();
+            return;
+        }
+
+        const rules = findMatchingRecordValue(snapshot.customHidingRules, hostname) || [];
+        filter.applyHidingRules(rules, "custom");
+        if (snapshot.isSelfHealingEnabled && rules.length > 0) {
+            void attemptSelfHealRules(filter, rules, hostname);
+        }
+
+        const temporaryWallFix = findMatchingRecordValue(localSnapshot.temporaryWallFixes, hostname);
+        const wallFix = findMatchingRecordValue(snapshot.persistentWallFixes, hostname);
+        const activeWallFix = temporaryWallFix && typeof temporaryWallFix.overlaySelector === "string"
+            ? temporaryWallFix
+            : wallFix && wallFix.enabled !== false && typeof wallFix.overlaySelector === "string"
+                ? wallFix
+                : null;
+
+        if (activeWallFix) {
+            filter.applyWallFix({
+                overlaySelector: activeWallFix.overlaySelector,
+                scrollSelector: activeWallFix.scrollSelector,
+                contentUnlockSelector: activeWallFix.contentUnlockSelector,
+            });
+        }
+
+        if (snapshot.isSandboxedIframeEnabled) {
+            filter.applyIframeSandboxing();
+        }
+
+        if (nextGenEnabled) {
+            nextGenCleaner.start();
+        } else {
+            nextGenCleaner.stop();
+        }
+        redditMediaGuard.start();
+        popupGuard.start();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.toLowerCase().includes("context invalidated")) {
+            console.warn("ZenithGuard: Could not re-apply recovered content state.", error);
+        }
+    }
+}
+
+async function attemptSelfHealRules(
+    filter: CosmeticFilter,
+    rules: Array<{ value: string; enabled?: boolean; lastHealed?: number; lastHealAttempt?: number }>,
+    hostname: string,
+): Promise<void> {
+    for (const [index, rule] of rules.entries()) {
+        if (!rule.enabled || !rule.value) {
+            continue;
+        }
+
+        const lastAttempt = rule.lastHealAttempt || 0;
+        if (Date.now() - lastAttempt < 1440 * 60 * 1000) {
+            continue;
+        }
+
+        if (document.readyState !== "complete") {
+            await new Promise<void>((resolve) => window.addEventListener("load", () => resolve(), { once: true }));
+        }
+
+        if (document.querySelector(rule.value) !== null) {
+            continue;
+        }
+
         try {
-            if (!isContextValid()) return;
-            const domain = window.location.hostname;
-            const settings = await chrome.storage.sync.get([
-                'customHidingRules', 'isCookieBannerHidingEnabled', 'isSelfHealingEnabled',
-                'isPerformanceModeEnabled', 'isSandboxedIframeEnabled', 'disabledSites',
-                'isProtectionEnabled', 'persistentWallFixes'
-            ]) as AppSettings;
+            const response = await selfHealRule(rule.value, window.location.href);
+            const snapshot = await getSync<{ customHidingRules?: Record<string, Array<{ value: string; enabled?: boolean; lastHealed?: number; lastHealAttempt?: number }>> }>(["customHidingRules"]);
+            const customHidingRules = snapshot.customHidingRules || {};
+            const matchingEntry = findMatchingRecordEntry(customHidingRules, hostname);
+            if (!matchingEntry || !matchingEntry.value[index]) {
+                continue;
+            }
 
-            const {
-                customHidingRules = {},
-                isCookieBannerHidingEnabled,
-                isSelfHealingEnabled,
-                isPerformanceModeEnabled: perfMode,
-                isSandboxedIframeEnabled,
-                disabledSites = [],
-                isProtectionEnabled = true,
-                persistentWallFixes = {}
-            } = settings;
-
-
-            const isDomainWhitelisted = (current: string, whitelisted: string[]) => {
-                if (whitelisted.includes(current)) return true;
-                const parts = current.split('.');
-                for (let i = 1; i < parts.length - 1; i++) {
-                    const parent = parts.slice(i).join('.');
-                    if (whitelisted.includes(parent)) return true;
+            customHidingRules[matchingEntry.key][index].lastHealAttempt = Date.now();
+            if (response.newSelector) {
+                customHidingRules[matchingEntry.key][index].value = response.newSelector;
+                customHidingRules[matchingEntry.key][index].lastHealed = Date.now();
+                const nextRules = normalizeCustomHidingRuleBuckets(customHidingRules);
+                await chrome.storage.sync.set({ customHidingRules: nextRules });
+                const nextMatchingEntry = findMatchingRecordEntry(nextRules, hostname);
+                if (nextMatchingEntry) {
+                    filter.applyHidingRules(nextMatchingEntry.value, "custom");
                 }
-                return false;
-            };
-
-            const isWhitelisted = isDomainWhitelisted(domain, disabledSites);
-            const isFullyEnabled = isProtectionEnabled && !isWhitelisted;
-            (window as any).ZenithGuard_ProtectionEnabled = isFullyEnabled;
-
-            if (!isFullyEnabled) {
-                cosmeticFilter.stop();
-                YouTubeProtector.getInstance().stop();
-                if (!isProtectionEnabled) {
-                    console.log("ZenithGuard: Global protection is OFF.");
-                } else {
-                    console.log(`ZenithGuard: Disabled for ${domain} (whitelisted).`);
-                }
-                return;
+                showToast({ message: "An old hiding rule was automatically repaired by AI.", type: "success" });
+            } else {
+                await chrome.storage.sync.set({ customHidingRules: normalizeCustomHidingRuleBuckets(customHidingRules) });
             }
-
-            isPerformanceModeEnabled = !!perfMode;
-
-            // 1. Apply rules
-            const rulesForDomain = customHidingRules[domain] || [];
-            cosmeticFilter.applyHidingRules(rulesForDomain, 'custom');
-
-            // 1.5 applying persistent wall fixes
-            const fix = persistentWallFixes[domain];
-            if (fix && fix.enabled) {
-                console.log(`ZenithGuard: Applying persistent Defeat Wall fix for ${domain}:`, fix.overlaySelector);
-                cosmeticFilter.applyWallFix(fix);
-            }
-
-            // 2. Sandboxing
-            if (isSandboxedIframeEnabled) {
-                cosmeticFilter.applyIframeSandboxing();
-            }
-
-            // 3. Startup Tasks (v2.4.0 Cleanup: AI triggers are managed via Message Handler)
-
-            // 4. Remote Filter Lists
-            if (!isContextValid()) return;
-            const response = await chrome.runtime.sendMessage({ type: 'GET_HIDING_RULES_FOR_DOMAIN', domain: domain });
-            if (response && response.rules) {
-                cosmeticFilter.applyHidingRules(response.rules, 'filterList');
-            }
-
-        } catch (e: any) {
-            const errorMessage = String(e.message || e);
-            if (!errorMessage.includes('context invalidated')) {
-                console.warn("ZenithGuard: Could not re-apply hiding rules.", e);
-            }
+        } catch {
+            // Keep automatic self-heal failures quiet during page cleanup.
         }
     }
+}
 
-    // --- Legacy / Interactive Logic ---
+function executeCookieConsentAction(selector: string): void {
+    const target = document.querySelector(selector) as HTMLElement | null;
+    if (!target) {
+        showToast({ message: "Cookie banner control was not found on the page.", type: "error" });
+        return;
+    }
 
-    // NOTE: Self-healing still here as it depends on local 'runSelfHealingCheck' recursion 
-    // and storage interaction similar to saveHidingRule but slightly different.
-    async function runSelfHealingCheck(rules: HidingRule[], domain: string) {
-        for (const [index, rule] of rules.entries()) {
-            if (!rule.enabled || !rule.value) continue;
-            const lastChecked = rule.lastHealAttempt || 0;
-            const oneDay = 24 * 60 * 60 * 1000;
-            if (Date.now() - lastChecked < oneDay) continue;
+    try {
+        target.scrollIntoView({ block: "center", inline: "center", behavior: "instant" as ScrollBehavior });
+    } catch {
+        // Ignore scroll issues.
+    }
 
-            if (document.readyState !== 'complete') {
-                await new Promise(resolve => window.addEventListener('load', resolve, { once: true }));
-            }
+    target.dispatchEvent(new MouseEvent("mouseover", { bubbles: true, cancelable: true, view: window }));
+    target.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+    target.click();
+    target.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true, view: window }));
 
-            if (document.querySelector(rule.value) === null) {
-                console.log(`ZenithGuard: Broken selector detected: ${rule.value}. Attempting to self-heal.`);
-                try {
-                    const response = await chrome.runtime.sendMessage({
-                        type: 'SELF_HEAL_RULE',
-                        data: { selector: rule.value, pageUrl: window.location.href }
-                    });
+    document.documentElement.style.setProperty("overflow", "visible", "important");
+    document.body.style.setProperty("overflow", "visible", "important");
+    document.body.style.setProperty("position", "static", "important");
+    document.body.style.setProperty("pointer-events", "auto", "important");
 
-                    if (response.newSelector) {
-                        console.log(`ZenithGuard: AI proposed new selector: ${response.newSelector}`);
-                        let { customHidingRules = {} } = await chrome.storage.sync.get('customHidingRules') as AppSettings;
-                        if (!customHidingRules[domain] || !customHidingRules[domain][index]) continue;
+    showToast({ message: "Cookie banner action applied.", type: "success" });
+}
 
-                        customHidingRules[domain][index].value = response.newSelector;
-                        customHidingRules[domain][index].lastHealed = Date.now();
-                        customHidingRules[domain][index].lastHealAttempt = Date.now();
-                        await chrome.storage.sync.set({ customHidingRules });
-
-                        cosmeticFilter.applyHidingRules(customHidingRules[domain], 'custom'); // Use Module
-                        showToast({ message: 'An old hiding rule was automatically repaired by AI.' });
-                    }
-                    // Update timestamp even if failed
-                    let { customHidingRules = {} } = await chrome.storage.sync.get('customHidingRules') as AppSettings;
-                    if (customHidingRules[domain] && customHidingRules[domain][index]) {
-                        customHidingRules[domain][index].lastHealAttempt = Date.now();
-                        await chrome.storage.sync.set({ customHidingRules });
-                    }
-                } catch (e) { }
-            }
+function startQuickHide(filter: CosmeticFilter): void {
+    const handler = async (event: MouseEvent): Promise<void> => {
+        const target = event.target as HTMLElement | null;
+        if (!target) {
+            return;
         }
-    }
 
-    function quickHideElement(targetElementId: any) {
-        const listener = (e: MouseEvent) => {
-            const target = e.target as Element;
-            const selector = window.ZenithGuardSelectorGenerator.generate(target);
-            if (selector) {
-                cosmeticFilter.saveHidingRule(selector);
-            }
-            document.removeEventListener('contextmenu', listener, { capture: true });
-        };
-        document.addEventListener('contextmenu', listener, { once: true, capture: true });
-    }
+        event.preventDefault();
+        event.stopPropagation();
+        document.removeEventListener("contextmenu", wrapped, true);
 
-    function startTargetedAIHider(targetElementId: any) {
-        const listener = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const context = {
-                tag: target.tagName.toLowerCase(),
-                id: target.id,
-                classes: target.className,
-                text: target.textContent?.trim().replace(/\s+/g, ' ').substring(0, 200) || ''
-            };
-            window.ZenithGuardAIHider.start((s) => cosmeticFilter.saveHidingRule(s), context);
-            document.removeEventListener('contextmenu', listener, { capture: true });
-        };
-        document.addEventListener('contextmenu', listener, { once: true, capture: true });
-    }
-
-    const showToast = (options: { message: string, type?: 'success' | 'error' | 'info' | 'loading', duration?: number, id?: string | null }) => {
-        if (window.ZenithGuardToastUtils && window.ZenithGuardToastUtils.showToast) {
-            window.ZenithGuardToastUtils.showToast(options);
+        const selector = generateUniqueSelector(target);
+        if (!selector) {
+            showToast({ message: "Could not generate a unique selector.", type: "error" });
+            return;
         }
+
+        await filter.saveHidingRule(selector, {
+            tool: "Quick Hide",
+            title: "Quick Hide Saved",
+            message: "Saved a hiding rule for the element you targeted from the page.",
+        });
+        await applyRecoveredState(filter);
     };
 
-    // --- Initialization ---
+    const wrapped = (event: MouseEvent): void => {
+        void handler(event);
+    };
 
-    // 1. YouTube Protection (Inject ASAP)
-    youtubeProtector.init(reapplyAllHidingRules);
+    document.addEventListener("contextmenu", wrapped, { once: true, capture: true });
+}
 
-    // 2. Initial Rules Application
-    await reapplyAllHidingRules(true);
+function startAiTargetedHide(initialContext?: { tag?: string; id?: string; classes?: string; text?: string }): void {
+    if (initialContext) {
+        aiHider.start({
+            context: initialContext,
+            onPreview: (selector) => filter.previewElement(selector, Boolean(selector)),
+            onApply: async (selector) => {
+                await filter.saveHidingRule(selector, {
+                    tool: "Hide with AI",
+                    title: "AI Hide Saved",
+                    message: "Saved an AI-assisted hiding rule for the selected page element.",
+                });
+                await applyRecoveredState(filter);
+            },
+        });
+        return;
+    }
 
-    // 3. Security Checks
-    securityGuard.attachPasswordMonitor();
+    const handler = (event: MouseEvent): void => {
+        const target = consumeTargetingContextMenuEvent(event);
+        if (!target) {
+            return;
+        }
 
-})();
+        const context = {
+            tag: target.tagName.toLowerCase(),
+            id: target.id || undefined,
+            classes: typeof target.className === "string" ? target.className : undefined,
+            text: target.textContent?.trim().replace(/\s+/g, " ").substring(0, 200) || undefined,
+        };
+
+        aiHider.start({
+            context,
+            onPreview: (selector) => filter.previewElement(selector, Boolean(selector)),
+            onApply: async (selector) => {
+                await filter.saveHidingRule(selector, {
+                    tool: "Hide with AI",
+                    title: "AI Hide Saved",
+                    message: "Saved an AI-assisted hiding rule for the selected page element.",
+                });
+                await applyRecoveredState(filter);
+            },
+        });
+
+        document.removeEventListener("contextmenu", handler, true);
+    };
+
+    document.addEventListener("contextmenu", handler, { once: true, capture: true });
+}
+
+installToastUtils();
+
+const filter = new CosmeticFilter(showToast);
+const aiHider = new AiHider();
+const breachWarning = new BreachWarning(showToast);
+const nextGenCleaner = new NextGenCleaner();
+const redditMediaGuard = new RedditMediaGuard();
+const popupGuard = new PopupGuard();
+const youTubeGuard = window.location.hostname === "www.youtube.com" ? YouTubeGuard.getInstance() : null;
+const inspector = new Inspector({
+    onSaveRule: async (selector) => {
+        await filter.saveHidingRule(selector, {
+            tool: "Inspector",
+            title: "Inspector Hide Saved",
+            message: "Saved a manual hiding rule from Inspector.",
+        });
+        await applyRecoveredState(filter);
+    },
+    onStartAiHide: (context) => startAiTargetedHide(context),
+    loadNetworkLog: async () => {
+        const result = await getNetworkLog();
+        return result.entries;
+    },
+    onBlockDomain: async (domain) => {
+        return addToNetworkBlocklist(domain, "inspector");
+    },
+    showToast,
+});
+const zapper = new Zapper({
+    onSaveRule: (selector) => filter.saveHidingRule(selector, {
+        tool: "Zapper",
+        title: "Zapper Hide Saved",
+        message: "Saved a hiding rule from Zapper cleanup.",
+    }),
+    onReapply: () => sendMessageSafely({ type: "REAPPLY_HIDING_RULES" }),
+    showToast,
+});
+
+chrome.runtime.onMessage.addListener((rawMessage, sender, sendResponse) => {
+    if (!isAuthorizedSender(sender)) {
+        return false;
+    }
+
+    const validation = validateContentMessage(rawMessage);
+    if (!validation.ok) {
+        return false;
+    }
+
+    const message = validation.message;
+
+    switch (message.type) {
+        case "START_INSPECTOR_MODE":
+            inspector.start(message.mode);
+            sendResponse({ success: true });
+            return false;
+        case "START_ZAPPER_MODE":
+            zapper.toggle();
+            sendResponse({ success: true });
+            return false;
+        case "QUICK_HIDE_ELEMENT":
+            startQuickHide(filter);
+            sendResponse({ success: true });
+            return false;
+        case "START_AI_HIDING_TARGETED":
+            startAiTargetedHide();
+            sendResponse({ success: true });
+            return false;
+        case "REAPPLY_HIDING_RULES":
+            void applyRecoveredState(filter).then(() => sendResponse({ success: true }));
+            return true;
+        case "EXECUTE_ADBLOCK_WALL_FIX":
+            clearProcessingToast();
+            sendResponse({ success: true, ...filter.executeAdblockWallFix(message.selectors) });
+            return false;
+        case "EXECUTE_COOKIE_CONSENT_ACTION":
+            clearProcessingToast();
+            executeCookieConsentAction(message.selector);
+            sendResponse({ success: true });
+            return false;
+        case "SHOW_PROCESSING_TOAST":
+            showToast({ message: message.message, type: "loading", id: "zg-processing-toast", duration: 0 });
+            sendResponse({ success: true });
+            return false;
+        case "CLEAR_PROCESSING_TOAST":
+            clearProcessingToast();
+            sendResponse({ success: true });
+            return false;
+        case "SHOW_ERROR_TOAST":
+            clearProcessingToast();
+            showToast({ message: message.message, type: "error" });
+            sendResponse({ success: true });
+            return false;
+        case "SHOW_BREACH_WARNING":
+            breachWarning.setBreached(true);
+            sendResponse({ success: true });
+            return false;
+        default:
+            return false;
+    }
+});
+
+youTubeGuard?.init(() => applyRecoveredState(filter));
+void applyRecoveredState(filter);

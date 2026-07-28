@@ -1,0 +1,126 @@
+{
+  "SESSION_REPLAY": {
+    "domains": [
+      "hotjar.com",
+      "fullstory.com",
+      "logrocket.com",
+      "inspectlet.com",
+      "clarity.ms",
+      "vwo.com",
+      "mouseflow.com",
+      "heap.io",
+      "smartlook.com",
+      "clicktale.net",
+      "sessioncam.com",
+      "userreplay.net",
+      "luckyorange.com",
+      "contentsquare.com",
+      "glassbox.com",
+      "quantummetric.com"
+    ],
+    "message": "This site uses session replay scripts from <strong>{domain}</strong>, which can record your clicks, mouse movements, and keystrokes in real-time."
+  },
+  "DATA_BROKER": {
+    "domains": [
+      "criteo.com",
+      "liveramp.com",
+      "acxiom.com",
+      "oracle.com",
+      "rlcdn.com",
+      "neustar.biz",
+      "quantcast.com",
+      "epsilon.com",
+      "experian.com",
+      "equifax.com",
+      "transunion.com",
+      "infotracer.com",
+      "spokeo.com",
+      "beenverified.com",
+      "intelius.com",
+      "peoplefinders.com",
+      "truthfinder.com",
+      "peopledatalabs.com",
+      "whitepages.com"
+    ],
+    "message": "A connection was made to <strong>{domain}</strong>, a known data broker that collects, aggregates, and sells your personal information."
+  },
+  "AD_EXCHANGE": {
+    "domains": [
+      "adnxs.com",
+      "rubiconproject.com",
+      "openx.net",
+      "pubmatic.com",
+      "indexexchange.com",
+      "doubleclick.net",
+      "googlesyndication.com",
+      "amazon-adsystem.com",
+      "taboola.com",
+      "outbrain.com",
+      "triplelift.com",
+      "media.net",
+      "adform.net",
+      "smartadserver.com",
+      "teads.tv",
+      "magnite.com",
+      "sovrn.com",
+      "adskeeper.co.uk",
+      "adskeeper.co",
+      "adskeeper.online",
+      "mgid.com",
+      "mgid.co",
+      "mgid.online",
+      "revcontent.com",
+      "engage.adskeeper.com"
+    ],
+    "message": "This site uses the <strong>{domain}</strong> ad exchange, which shares your browsing profile across a massive automated network of advertisers."
+  },
+  "FINGERPRINTING": {
+    "domains": [
+      "fingerprint.com",
+      "fingerprintjs.com",
+      "maxmind.com",
+      "threatmetrix.com",
+      "iovation.com",
+      "sift.com",
+      "deviceatlas.com",
+      "51.la"
+    ],
+    "message": "This site uses <strong>{domain}</strong> for advanced browser fingerprinting, attempting to uniquely identify you without using cookies."
+  },
+  "CRYPTOJACKING": {
+    "domains": [
+      "coinhive.com",
+      "coin-hive.com",
+      "crypto-loot.com",
+      "minero.pw",
+      "authedmine.com",
+      "webminepool.com",
+      "monerohash.com"
+    ],
+    "message": "ZenithGuard blocked <strong>{domain}</strong>, a known cryptojacking script attempting to use your CPU to mine cryptocurrency."
+  },
+  "AI_SCRAPERS": {
+    "domains": [
+      "openai.com",
+      "anthropic.com",
+      "ccbot.org",
+      "commoncrawl.org",
+      "claudebot.com",
+      "gptbot.com",
+      "cohere.ai"
+    ],
+    "message": "Blocked <strong>{domain}</strong> AI crawler from harvesting this page's content for unsolicited model training."
+  },
+  "SOCIAL_WIDGETS": {
+    "domains": [
+      "platform.twitter.com",
+      "platform.instagram.com",
+      "widgets.pinterest.com",
+      "redditstatic.com",
+      "buffer.com",
+      "snapchat.com",
+      "tiktok.com"
+    ],
+    "message": "Hidden social media tracker from <strong>{domain}</strong> that follows your activity via embedded share buttons."
+  }
+}

@@ -1,30 +1,30 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>ZenithGuard - Access Denied</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/blocked.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenithGuard - Blocked</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/blocked.css">
+    <script type="module" src="/src/js/blocked/blocked.ts"></script>
 </head>
-
-<body>
-    <div class="container">
-        <header class="header">
-            <img src="../icons/icon48.png" alt="ZenithGuard Logo">
+<body data-mode="threat">
+    <div class="blocked-shell">
+        <header class="blocked-header">
+            <img src="/icons/icon48.png" alt="ZenithGuard Logo">
             <h1>ZenithGuard</h1>
         </header>
-        <div class="content">
-            <h2>Dangerous Page Blocked</h2>
-            <p>
-                ZenithGuard has blocked access to this page to protect you from potential security threats. The site is
-                on a list known for hosting malware, phishing, or other malicious content.
-            </p>
-        </div>
-        <div class="actions">
-            <button id="back-btn" class="btn">Go Back Safely</button>
+        <main class="blocked-card">
+            <div id="blocked-icon" class="blocked-icon" aria-hidden="true"></div>
+            <h2 id="blocked-title" class="blocked-title">Dangerous Page Blocked</h2>
+            <p id="blocked-copy" class="blocked-copy"></p>
+            <div id="blocked-note" class="blocked-note" hidden></div>
+        </main>
+        <div class="blocked-actions">
+            <button id="blocked-back-btn" class="blocked-button" type="button">Go Back Safely</button>
+            <button id="blocked-visit-btn" class="blocked-button blocked-button-secondary" type="button" hidden>Visit Anyway</button>
+            <button id="blocked-settings-btn" class="blocked-button blocked-button-secondary" type="button" hidden>Open Settings</button>
         </div>
     </div>
-    <script type="module" src="../js/blocked/blocked.js"></script>
 </body>
-
 </html>

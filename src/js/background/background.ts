@@ -1,151 +1,92 @@
-/**
- * BACKGROUND.TS - ZENITHGUARD SERVICE WORKER ENTRY POINT
- * 
- * DEVELOPER NOTE: When adding new imports, ALWAYS include the ".js" extension 
- * (e.g., import * from './modules/rule_engine.js'). 
- * Chrome's Service Worker ESM implementation requires explicit extensions.
- */
-import * as ruleEngine from './modules/rule_engine.js';
-import * as storageManager from './modules/storage_manager.js';
-import * as filterListHandler from './modules/filter_list_handler.js';
-import * as ai from './modules/ai_handler.js';
-import * as keepAlive from './modules/keep_alive.js'; // NEW: Keep Alive Module
-import { updateMalwareList } from './modules/malware_protection.js';
-import { updateYouTubeRules } from './modules/youtube_rules_updater.js';
-import { updateTrackerList } from './modules/tracker_list_updater.js';
-import * as focusMode from './modules/focus_mode_manager.js';
-import { initializeNetworkLogger } from './modules/network_logger.js';
-import { createContextMenus, initializeContextMenuListeners } from './modules/context_menu_manager.js';
-import { initializeTabManager } from './modules/tab_manager.js';
-import { initializeMessageHandler } from './modules/message_handler.js';
-import { PrivacyManager } from './modules/privacy_manager.js';
+import { getTabHostname } from "../shared/browser";
+import { sendContentMessageSafely } from "../shared/runtime_messages";
+import { getAiHandlerModule, resetRecoveredAiModule } from "./modules/ai_handler";
+import { initializeBackgroundRuntime } from "./modules/bootstrap";
+import { attachContextMenuRuntime, refreshContextMenus } from "./modules/context_menu_runtime";
+import { attachMessageRuntime } from "./modules/message_runtime";
+import { combineActionRegistries } from "./modules/message_registry";
+import { createAiActionRegistry } from "./modules/message_actions/ai_actions";
+import { createPrivacyActionRegistry } from "./modules/message_actions/privacy_actions";
+import { createRulesActionRegistry } from "./modules/message_actions/rules_actions";
+import { clearNetworkLogsForTab, getNetworkLogSnapshotForTab, getNetworkLogsForTab } from "./modules/network_logger/log_store";
+import { attachNetworkLoggerRuntime, broadcastNetworkLogReset } from "./modules/network_logger/runtime";
+import { attachPrivacyRuntime, getPrivacyRuntime } from "./modules/privacy_runtime";
+import { buildPrivacyInsights } from "./modules/privacy_insights/runtime";
+import { applyRules } from "./modules/rule_engine";
+import { initializeSettings, migrateStoredRules } from "./modules/storage/migrations";
+import { attachTabManagerRuntime } from "./modules/tab_manager_runtime";
+import type { ContentMessage } from "../shared/content_messages";
 
-// Initialize Modules
-initializeNetworkLogger();
-initializeContextMenuListeners();
-initializeTabManager();
-initializeMessageHandler();
+async function broadcastToAllTabs(message: ContentMessage): Promise<void> {
+    const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"], status: "complete" });
+    await Promise.allSettled(
+        tabs.map((tab) => {
+            if (typeof tab.id !== "number") {
+                return Promise.resolve();
+            }
+            return sendContentMessageSafely(tab.id, message);
+        }),
+    );
+}
 
-// Singleton Privacy Manager
-const privacyManager = new PrivacyManager();
+const aiActions = createAiActionRegistry({
+    getNetworkLogs: getNetworkLogsForTab,
+    getAiModule: getAiHandlerModule,
+});
 
-// --- Privacy Insights Listener ---
-chrome.webRequest.onBeforeRequest.addListener(
-    (details) => {
-        if (details.tabId > -1 && details.url) {
-            privacyManager.processRequest(details.tabId, details.url);
-        }
-    },
-    { urls: ["<all_urls>"] }
+let applyRulesQueue = Promise.resolve();
+
+const applyAllRules = async (): Promise<void> => {
+    const run = applyRulesQueue.then(async () => {
+        await applyRules();
+    });
+    applyRulesQueue = run.catch(() => {});
+    await run;
+};
+
+const rulesActions = createRulesActionRegistry({
+    applyRules: applyAllRules,
+    broadcastToAllTabs,
+});
+
+const privacyActions = createPrivacyActionRegistry({
+    getPrivacyStats: (tabId) => getPrivacyRuntime().getStats(tabId),
+    getNetworkLogs: getNetworkLogsForTab,
+    getNetworkLogSnapshot: getNetworkLogSnapshotForTab,
+    clearNetworkLogs: clearNetworkLogsForTab,
+    resetPrivacyStats: (tabId) => getPrivacyRuntime().resetStats(tabId),
+    broadcastNetworkLogReset,
+    getPrivacyInsights: async (tabId) => buildPrivacyInsights(
+        getNetworkLogsForTab(tabId),
+        (await getTabHostname(tabId)) || "unknown",
+    ),
+});
+
+const actionRegistry = combineActionRegistries(
+    rulesActions.actions,
+    aiActions.actions,
+    privacyActions.actions,
 );
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'loading') {
-        privacyManager.resetStats(tabId);
-    }
+initializeBackgroundRuntime({
+    attachNetworkLoggerRuntime,
+    attachContextMenuRuntime,
+    attachTabManagerRuntime,
+    attachMessageHandlerRuntime: () => attachMessageRuntime({
+        actionRegistry,
+        onTabRemoved: aiActions.onTabRemoved,
+    }),
+    attachPrivacyRuntime,
+    lifecycleDeps: {
+        initializeSettings,
+        migrateRules: migrateStoredRules,
+        setupContextMenus: refreshContextMenus,
+        applyRules: applyAllRules,
+    },
+    settingsRuntimeDeps: {
+        applyRules: applyAllRules,
+        reapplyHidingRules: () => broadcastToAllTabs({ type: "REAPPLY_HIDING_RULES" }),
+    },
 });
 
-// Handle Privacy Stats Request (Parallel to central message handler)
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'GET_PRIVACY_STATS') {
-        const stats = privacyManager.getStats(request.tabId);
-        sendResponse(stats);
-        return true; // async response
-    }
-    return false;
-});
-
-
-chrome.runtime.onInstalled.addListener(async (details) => {
-    await storageManager.initializeSettingsIfNeeded();
-    if (details.reason === 'install') chrome.tabs.create({ url: 'src/pages/welcome.html' });
-    else if (details.reason === 'update') {
-        const currentVersion = chrome.runtime.getManifest().version;
-        if (details.previousVersion !== currentVersion) chrome.tabs.create({ url: `src/pages/whats_new.html?v=${currentVersion}` });
-    }
-    createContextMenus();
-    await storageManager.migrateOldRules();
-    await ruleEngine.applyAllRules();
-    await filterListHandler.updateAllLists(true);
-    await updateMalwareList();
-    await updateYouTubeRules(true);
-    await updateTrackerList(true);
-    chrome.alarms.create('dailyListUpdate', { periodInMinutes: 24 * 60 });
-});
-
-chrome.runtime.onStartup.addListener(async () => {
-    await storageManager.initializeSettingsIfNeeded();
-    await ruleEngine.applyAllRules();
-    await filterListHandler.updateAllLists();
-    await updateMalwareList();
-    await updateYouTubeRules();
-    await updateTrackerList();
-});
-
-chrome.storage.onChanged.addListener(async (changes, area) => {
-    if (area !== 'sync') return;
-    if (changes.geminiApiKey) ai.resetAiClient();
-
-    // Trigger rule update if Focus Mode toggles
-    if (changes.isFocusModeEnabled || changes.focusModeUntil || changes.focusBlocklist) {
-        await ruleEngine.applyAllRules();
-    }
-
-    const ruleKeys = [
-        'networkBlocklist', 'customHidingRules', 'heuristicKeywords',
-        'defaultBlocklist', 'disabledSites', 'isolationModeSites',
-        'filterLists', 'isHeuristicEngineEnabled', 'isUrlCleanerEnabled',
-        'isMalwareProtectionEnabled', 'isYouTubeAdBlockingEnabled',
-        'isProtectionEnabled', 'enabledStaticRulesets', 'forgetfulSites'
-    ];
-
-    if (ruleKeys.some(key => changes[key])) {
-        console.log("ZenithGuard: Rule-related setting changed. Re-applying all rules.");
-        await ruleEngine.applyAllRules();
-        const tabs = await chrome.tabs.query({ url: ["http://*/*", "https://*/*"], status: 'complete' });
-        const messagePromises = tabs.map(tab => {
-            if (tab.id) return chrome.tabs.sendMessage(tab.id, { type: 'REAPPLY_HIDING_RULES' }).catch(e => { });
-            return Promise.resolve();
-        });
-        await Promise.allSettled(messagePromises);
-    }
-});
-
-chrome.alarms.onAlarm.addListener(async (alarm) => {
-    if (alarm.name === 'dailyListUpdate') {
-        await filterListHandler.updateAllLists();
-        await updateMalwareList();
-        await updateYouTubeRules();
-        await updateTrackerList();
-    }
-    if (alarm.name === 'resumeProtection') {
-        await chrome.storage.session.remove('protectionPausedUntil');
-        await ruleEngine.applyAllRules();
-        await chrome.alarms.clear('resumeProtection');
-    }
-});
-
-// --- Keyboard Shortcuts Handler ---
-chrome.commands.onCommand.addListener(async (command) => {
-    if (command === 'open-settings') {
-        chrome.runtime.openOptionsPage();
-    } else if (command === 'open-logger') {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const currentTabId = tabs[0]?.id;
-        // If we have a current tab, pass its ID so the logger can filter for it
-        const url = currentTabId ? `src/pages/logger.html?tabId=${currentTabId}` : 'src/pages/logger.html';
-        chrome.tabs.create({ url });
-    } else if (command === 'toggle-zapper') {
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs.length > 0 && tabs[0].id) {
-            try {
-                await chrome.tabs.sendMessage(tabs[0].id, { type: 'START_ZAPPER_MODE' });
-            } catch (e) {
-                console.warn("ZenithGuard: Could not toggle Zapper on this tab. Content script may not be loaded.", e);
-            }
-        }
-    }
-});
-
-// NEW: Global Keep-Alive for critical background tasks (optional global trigger)
-// Currently controlled by ai_handler explicitly.
+void resetRecoveredAiModule();

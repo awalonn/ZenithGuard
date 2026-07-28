@@ -1,17 +1,18 @@
 export default {
-    preset: 'ts-jest/presets/default-esm',
-    testEnvironment: 'node', // Puppeteer runs in node
-    roots: ['<rootDir>/tests/e2e'],
-    moduleNameMapper: {
-        '^(\\.{1,2}/.*)\\.js$': '$1',
-    },
-    transform: {
-        '^.+\\.tsx?$': [
-            'ts-jest',
-            {
-                useESM: true,
-            },
-        ],
-    },
-    testTimeout: 30000, // Longer timeout for browser operations
+  preset: "ts-jest/presets/default-esm",
+  testEnvironment: "node",
+  roots: ["<rootDir>/tests/e2e"],
+  testMatch: ["<rootDir>/tests/e2e/**/*.test.[jt]s"],
+  setupFilesAfterEnv: ["<rootDir>/tests/e2e/setup.ts"],
+  moduleFileExtensions: ["js", "ts", "json"],
+  extensionsToTreatAsEsm: [".ts"],
+  transform: {
+    "^.+\\.ts$": [
+      "ts-jest",
+      {
+        useESM: true,
+        tsconfig: "<rootDir>/tsconfig.json"
+      }
+    ]
+  }
 };

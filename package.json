@@ -1,37 +1,40 @@
 {
   "name": "zenithguard",
-  "version": "2.4.2",
+  "version": "3.2.2",
   "description": "ZenithGuard - Advanced AI Ad & Privacy Blocker",
-  "main": "js/background/background.js",
   "type": "module",
+  "private": true,
   "repository": {
     "type": "git",
     "url": "https://github.com/awalonn/ZenithGuard.git"
   },
   "scripts": {
-    "build": "vite build && vite build -c vite.content.config.js",
-    "build:firefox": "vite build --outDir dist-firefox && vite build -c vite.content.config.js --outDir dist-firefox && node scripts/build_firefox_manifest.cjs dist-firefox/manifest.json",
+    "check:dnr": "node scripts/check_dnr_rules.mjs",
+    "check:surface": "node scripts/check_extension_surface.mjs && npm run check:dnr",
+    "check:dist": "node scripts/check_dist_surface.mjs dist",
+    "scan:live": "node scripts/live_ad_scan.mjs",
+    "build": "vite build && node scripts/build_auxiliary_entries.mjs dist",
+    "build:firefox": "vite build --outDir dist-firefox && node scripts/build_auxiliary_entries.mjs dist-firefox && node scripts/build_firefox_manifest.cjs dist-firefox/manifest.json",
     "watch": "vite build --watch",
-    "update-rulesets": "node scripts/dev_build_static_rulesets.cjs",
     "release": "node release.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration",
-    "test:e2e": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.e2e.config.js"
-  },
-  "dependencies": {
-    "chart.js": "^4.5.1",
-    "node-fetch": "^3.3.2"
+    "test": "node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:smoke": "npm run check:surface && node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit --runInBand && node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.e2e.config.js tests/e2e --runInBand",
+    "test:unit": "node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js tests/unit",
+    "test:integration": "node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js tests/integration",
+    "test:e2e": "node --max-old-space-size=8192 --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.e2e.config.js"
   },
   "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
     "@types/chrome": "^0.1.32",
     "@types/jest": "^30.0.0",
+    "@types/node": "^24.5.2",
     "@types/puppeteer": "^5.4.7",
     "archiver": "^7.0.1",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^30.2.0",
     "puppeteer": "^21.11.0",
     "semver": "^7.7.3",
+    "svelte": "^5.53.3",
     "ts-jest": "^29.4.6",
     "typescript": "^5.9.3",
     "vite": "^7.2.6",

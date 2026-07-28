@@ -1,59 +1,83 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Welcome to ZenithGuard</title>
     <meta charset="UTF-8">
-    <link rel="stylesheet" href="../css/theme.css">
-    <link rel="stylesheet" href="../css/onboarding.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to ZenithGuard</title>
+    <link rel="stylesheet" href="/css/theme.css">
+    <link rel="stylesheet" href="/css/onboarding.css">
+    <script type="module" src="/src/js/onboarding/onboarding.ts"></script>
 </head>
-
 <body>
     <div class="container">
         <header class="header">
-            <img src="../icons/icon128.png" alt="ZenithGuard Logo">
-            <h1>Welcome!</h1>
+            <img src="/icons/icon128.png" alt="ZenithGuard Logo">
+            <div class="header-copy">
+                <div class="eyebrow">ZenithGuard setup</div>
+                <h1>Welcome!</h1>
+                <p class="hero-copy">ZenithGuard is ready. A few sensible defaults are already active, and you can optionally unlock Gemini-powered tools now or later.</p>
+            </div>
         </header>
 
-        <h2>Your Advanced Web Guardian is Ready</h2>
-        <p>ZenithGuard is now active, working to create a cleaner, safer, and faster browsing experience for you.</p>
+        <div class="hero-summary">
+            <div class="summary-pill">
+                <span>Core protection</span>
+                <strong>Already on</strong>
+            </div>
+            <div class="summary-pill">
+                <span>AI features</span>
+                <strong>Optional setup</strong>
+            </div>
+            <div class="summary-pill">
+                <span>Best next step</span>
+                <strong>Review settings</strong>
+            </div>
+        </div>
 
         <div class="features">
             <div class="feature-card">
                 <h3>Powerful Blocking</h3>
-                <p>Removes ads, pop-ups, and trackers using both community-driven lists and a smart heuristic engine.
-                </p>
+                <p>Blocks the most common annoyance and tracking patterns without waiting for you to configure anything first.</p>
             </div>
             <div class="feature-card">
                 <h3>Advanced Privacy</h3>
-                <p>Protects you from tracking by cleaning URLs, stopping fingerprinting, and blocking malicious sites.
-                </p>
+                <p>Keeps privacy-focused protections active by default while still letting you pause protection on specific sites when needed.</p>
             </div>
             <div class="feature-card">
                 <h3>AI-Driven Tools</h3>
-                <p>Use the power of AI to analyze page security and hide any unwanted element with a simple description.
-                </p>
+                <p>Unlock AI page analysis and natural-language element hiding if you add a Gemini API key. This is optional, not required.</p>
             </div>
         </div>
 
         <div id="initial-setup" class="setup-section">
-            <h3>Quick Setup: Enable AI Features</h3>
-            <p>To unlock the AI Page Analyzer and AI Hider, add your free Google Gemini API key. You can get your key
-                from <a href="https://aistudio.google.com/app/apikey" target="_blank" class="inline-link">Google AI
-                    Studio</a>.</p>
+            <div class="setup-intro">
+                <h3>Optional: enable AI features now</h3>
+                <p>To unlock the AI Page Analyzer and AI Hider, add a Google Gemini API key. You can also skip this and keep using ZenithGuard without AI until you are ready.</p>
+            </div>
+            <div class="setup-note">
+                <strong>Recommended if you want:</strong>
+                <span>page scans, AI-based hiding suggestions, and privacy-summary workflows.</span>
+            </div>
             <div class="api-key-container">
                 <input type="password" id="api-key-input" placeholder="Enter your Gemini API key">
                 <button id="save-api-key-btn" class="btn btn-primary">Save Key</button>
             </div>
+            <div class="setup-links">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="inline-link">Get a Gemini API key</a>
+                <button id="skip-ai-setup-btn" class="btn btn-secondary" type="button">Skip for now</button>
+            </div>
+            <p class="setup-note">
+                Your Gemini key stays in this browser profile. AI requests send
+                page screenshots plus stripped page/request context only when
+                you actively use Gemini-powered features.
+            </p>
         </div>
 
         <div id="success-message" class="setup-section hidden">
-            <h2>All Set!</h2>
-            <p>Your API key has been saved. You are now ready to experience the full power of ZenithGuard.</p>
-            <button id="get-started-btn" class="btn btn-primary">Open Settings & Get Started</button>
+            <h2>AI features enabled</h2>
+            <p>Your API key has been saved. ZenithGuard is ready to use AI-powered scanning and hiding tools whenever you need them.</p>
+            <button id="get-started-btn" class="btn btn-primary">Open Settings</button>
         </div>
     </div>
-    <script type="module" src="../js/onboarding/onboarding.js"></script>
 </body>
-
 </html>

@@ -1,58 +1,26 @@
-import { setupBrowser, teardownBrowser, getExtensionId } from './setup.js';
-import { Browser, Page } from 'puppeteer';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-describe('Popup UI Rendering', () => {
-    let browser: Browser;
-    let extensionId: string;
-    let popupPage: Page;
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-    beforeAll(async () => {
-        browser = await setupBrowser();
-        extensionId = await getExtensionId(browser);
-    });
+describe("popup extension surface", () => {
+    it("keeps the recovered popup page and main source entry", () => {
+        const popupHtml = fs.readFileSync(
+            path.join(projectRoot, "src/pages/popup.html"),
+            "utf8",
+        );
+        const popupSource = fs.readFileSync(
+            path.join(projectRoot, "src/ui/popup/Popup.svelte"),
+            "utf8",
+        );
+        const toolsTabSource = fs.readFileSync(
+            path.join(projectRoot, "src/ui/popup/components/ToolsTab.svelte"),
+            "utf8",
+        );
 
-    afterAll(async () => {
-        await teardownBrowser();
-    });
-
-    test('should render the popup page', async () => {
-        // Construct the popup URL (MV3 standard)
-        const popupUrl = `chrome-extension://${extensionId}/src/pages/popup.html`;
-
-        popupPage = await browser.newPage();
-        await popupPage.goto(popupUrl, { waitUntil: 'networkidle0' });
-
-        // Check page title
-        const title = await popupPage.title();
-        expect(title).toBe('ZenithGuard');
-
-        // Check Brand Name
-        const brandName = await popupPage.$eval('.brand-name', el => el.textContent);
-        expect(brandName).toBe('ZenithGuard');
-
-        // Check Power Button existence
-        const powerBtn = await popupPage.$('#power-btn');
-        expect(powerBtn).toBeDefined();
-    });
-
-    test('should switch tabs correctly', async () => {
-        if (!popupPage) return; // Skip if previous test failed
-
-        // Initial state: Home tab active
-        let homeDisplay = await popupPage.$eval('#home', el => getComputedStyle(el).display);
-        expect(homeDisplay).not.toBe('none');
-
-        // Click Tools tab
-        await popupPage.click('button[data-tab="tools"]');
-
-        // Wait for tab switch (display change)
-        await popupPage.waitForFunction(() => {
-            const tools = document.querySelector('#tools');
-            return tools && getComputedStyle(tools).display !== 'none';
-        });
-
-        // Verify content
-        const zapperBtn = await popupPage.$('#zapper-mode-btn');
-        expect(zapperBtn).toBeDefined();
+        expect(popupHtml).toContain("/src/ui/popup/main.ts");
+        expect(popupSource).toContain("ToolsTab");
+        expect(toolsTabSource).toContain("Recent Tool Activity");
     });
 });

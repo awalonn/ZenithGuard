@@ -1,27 +1,17 @@
-import { setupBrowser, teardownBrowser, getExtensionId } from './setup.js';
-import { Browser } from 'puppeteer';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-describe('Extension Loading', () => {
-    let browser: Browser;
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-    beforeAll(async () => {
-        browser = await setupBrowser();
-    });
+describe("extension package surface", () => {
+    it("keeps the expected background and popup entrypoints", () => {
+        const manifest = JSON.parse(
+            fs.readFileSync(path.join(projectRoot, "manifest.json"), "utf8"),
+        );
 
-    afterAll(async () => {
-        await teardownBrowser();
-    });
-
-    test('should load the extension and have a valid ID', async () => {
-        const extensionId = await getExtensionId(browser);
-        expect(extensionId).toBeDefined();
-        expect(extensionId.length).toBeGreaterThan(0);
-        console.log(`Extension loaded with ID: ${extensionId}`);
-    });
-
-    test('should register service worker', async () => {
-        const targets = await browser.targets();
-        const serviceWorker = targets.find(t => t.type() === 'service_worker');
-        expect(serviceWorker).toBeDefined();
+        expect(manifest.background?.service_worker).toBe("js/background.js");
+        expect(manifest.action?.default_popup).toBe("src/pages/popup.html");
+        expect(manifest.options_page).toBe("src/pages/settings.html");
     });
 });

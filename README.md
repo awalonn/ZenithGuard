@@ -6,13 +6,13 @@ Current version: `3.2.2`.
 
 ## Development
 Use focused checks while iterating, then broader checks at meaningful checkpoints:
-- `npx svelte-check`
+- `npm run check:types`
 - `npm run test:smoke`
 - `npm run build`
 - `npm run check:surface`
 - `npm run check:dist`
 
-For small edits, run the focused unit or e2e test that covers the changed path first. Run `npx svelte-check` when Svelte or typed UI/source paths change. Run `npm run build` for shipped code/assets. Save full `npm run test:smoke` for broad changes, release/handoff checkpoints, or when a focused check suggests wider risk.
+For small edits, run the focused unit or e2e test that covers the changed path first. Run `npm run check:types` when Svelte or typed UI/source paths change. Run `npm run build` for shipped code/assets. Save full `npm run test:smoke` for broad changes, release/handoff checkpoints, or when a focused check suggests wider risk.
 
 The built `dist` directory loads in Chrome as an unpacked extension.
 Chrome may create `dist/_metadata` while `dist` is loaded; that folder is local unpacked-extension metadata and is ignored by the dist checker and release packaging.

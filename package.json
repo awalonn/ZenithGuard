@@ -12,6 +12,7 @@
     "check:dnr": "node scripts/check_dnr_rules.mjs",
     "check:surface": "node scripts/check_extension_surface.mjs && npm run check:dnr",
     "check:dist": "node scripts/check_dist_surface.mjs dist",
+    "check:types": "svelte-check",
     "scan:live": "node scripts/live_ad_scan.mjs",
     "build": "vite build && node scripts/build_auxiliary_entries.mjs dist",
     "build:firefox": "vite build --outDir dist-firefox && node scripts/build_auxiliary_entries.mjs dist-firefox && node scripts/build_firefox_manifest.cjs dist-firefox/manifest.json",

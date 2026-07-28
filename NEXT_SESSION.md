@@ -1,6 +1,6 @@
 # Next Session Plan
 
-Workspace: `G:\AI Projects\Browser\zenithguard`
+Workspace: `D:\Development\Projects\Browser\zenithguard`
 
 ## Fresh Chat Handoff
 - Start here in a new chat. Do not redo old work; continue from this file and the recommended next task.
@@ -8,7 +8,7 @@ Workspace: `G:\AI Projects\Browser\zenithguard`
   - Version is now `3.2.2`.
   - `npm run test:smoke` passes.
   - `npm run build` passes.
-  - `npx svelte-check` passes.
+  - `npm run check:types` passes.
   - `npm run check:dist` passes against rebuilt `dist`.
   - Latest smoke result: 58 unit suites / 377 unit tests and 4 e2e suites / 5 e2e tests passed.
   - Web Store packaging is not the active priority. Do not rebuild release zips unless the user explicitly asks for a publish/upload artifact.
@@ -20,7 +20,7 @@ Workspace: `G:\AI Projects\Browser\zenithguard`
 - Latest site-specific fix: `NextGenCleaner` now reads element IDs and classes through DOM attributes, preventing `id?.startsWith is not a function` crashes on pages with non-string reflected DOM properties such as SVG values. The same hardening pass now cleans matching widgets already present at startup, nested inside newly inserted wrappers, or marked by later ID/class mutations, while correctly excluding `zg-*` extension UI. Five focused tests, `npx svelte-check`, and `npm run build` passed.
 - Build command is exactly `npm run build`; it runs `vite build && node scripts/build_auxiliary_entries.mjs dist`.
 - Full regression command is exactly `npm run test:smoke`; it runs extension surface checks, DNR checks, unit tests, and packaged e2e tests. Use it at meaningful checkpoints, before handoff/release, or after broad cross-surface changes rather than after every small edit.
-- Typed UI/source check command is exactly `npx svelte-check`. Use it when Svelte or typed UI/source paths change.
+- Typed UI/source check command is exactly `npm run check:types`. Use it when Svelte or typed UI/source paths change.
 - For narrow changes, prefer the focused unit/e2e test that covers the edited path, then run broader checks only when the risk or touched surface justifies it.
 - Packaged extension e2e tests use Puppeteer from the repo dependency, load `dist` as an unpacked Chromium extension, and run through Jest with `jest.e2e.config.js`.
 - Focused packaged e2e command pattern:
@@ -485,7 +485,7 @@ Workspace: `G:\AI Projects\Browser\zenithguard`
 ## Current Verification Baseline
 - `npm run test:smoke` passes.
 - `npm run build` passes.
-- `npx svelte-check` passes with 0 errors and 0 warnings.
+- `npm run check:types` passes with 0 errors and 0 warnings.
 - Packaged `dist` settings-page verification passes in a fresh unpacked Chrome profile, including the `Extension Health` card, `Copy Diagnostics`, `Download Diagnostics`, `Re-enable Protection`, and `Resume Protection` repair actions.
 - Focused diagnostics coverage confirms active-tab context redacts path/query/hash details before the report is copied or downloaded.
 - Packaged diagnostics verification confirms copied diagnostics include redacted recent-web-tab context from the real Chrome `tabs` API.
@@ -1011,6 +1011,6 @@ Reason:
 ## Commands To Run Before Handing Back Work
 - `npm run test:smoke`
 - `npm run build`
-- `npx svelte-check` if the task touches typed UI/source paths
+- `npm run check:types` if the task touches typed UI/source paths
 
 If `svelte-check` fails again, treat it as a regression until the failing diagnostics are inspected.

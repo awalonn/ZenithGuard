@@ -5,7 +5,7 @@ Workspace: `D:\Development\Projects\Browser\zenithguard`
 ## Fresh Chat Handoff
 - Start here in a new chat. Do not redo old work; continue from this file and the recommended next task.
 - Current baseline after the latest session:
-  - Version is now `3.2.2`.
+  - Version is now `3.3.0`.
   - `npm run test:smoke` passes.
   - `npm run build` passes.
   - `npm run check:types` passes.
@@ -36,7 +36,7 @@ Workspace: `D:\Development\Projects\Browser\zenithguard`
 
 ## Current State
 - The repo is past recovery mode.
-- ZenithGuard is now versioned as `3.2.2` in `package.json`, `package-lock.json`, `manifest.json`, the Gemini client header, and the What&apos;s New fallback/release copy.
+- ZenithGuard is now versioned as `3.3.0` in `package.json`, `package-lock.json`, `manifest.json`, the Gemini client header, and the What&apos;s New fallback/release copy.
 - `npm run test:smoke` passes.
 - `npm run build` passes.
 - No current Chrome Web Store upload artifact is needed unless the user explicitly asks to publish/package one.

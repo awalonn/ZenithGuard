@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 
 const rootDir = process.cwd();
 const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
@@ -17,7 +17,7 @@ if (!fs.existsSync(distDir)) {
 fs.mkdirSync(releasesDir, { recursive: true });
 
 const output = fs.createWriteStream(zipPath);
-const archive = archiver("zip", { zlib: { level: 9 } });
+const archive = new ZipArchive({ zlib: { level: 9 } });
 
 await new Promise((resolve, reject) => {
     output.on("close", resolve);

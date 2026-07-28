@@ -2,28 +2,28 @@
     import { onMount } from "svelte";
     import { closeCurrentTabOrWindow } from "../../js/shared/browser";
 
-    let version = "v3.2.2";
+    let version = "v3.3.0";
 
     const changes = [
         {
-            label: "Architecture",
-            title: "Old ruleset baggage cleared out",
-            copy: "Legacy EasyList-era scripts, stale ruleset files, and misleading updater paths were removed so the codebase now reflects the blocker architecture we actually ship.",
+            label: "Privacy",
+            title: "Sensitive settings stay on this device",
+            copy: "Gemini API keys now use local extension storage instead of Chrome Sync, backups exclude the key, and the extension includes a clear privacy policy.",
         },
         {
-            label: "Tools",
-            title: "Manual reports are easier to act on",
-            copy: "Popup site reports now include review candidates, Logger Review shortcuts, and a redacted Copy Review List path for sharing likely ad-tech misses without exposing private request paths.",
+            label: "Permissions",
+            title: "Browsing-data access is now optional",
+            copy: "Forgetful Browsing requests its extra permission only when you enable the feature, keeping the default installation footprint smaller.",
         },
         {
-            label: "AI",
-            title: "Gemini controls are clearer",
-            copy: "The default Gemini model was refreshed, error states are easier to understand, and you can now override the model ID in Settings when you want to test a different Gemini variant.",
+            label: "Security",
+            title: "A tighter extension surface",
+            copy: "Unused externally accessible bundles and dormant policy-scanning code were removed, while dynamic interface content is now rendered through safer DOM APIs.",
         },
         {
-            label: "Core",
-            title: "Safer packaged rules",
-            copy: "The built-in core rules layer now has stronger smoke guards against broad payment and TikTok-family compatibility filters while preserving narrow telemetry coverage.",
+            label: "Reliability",
+            title: "Dependencies and threat data refreshed",
+            copy: "Core tooling was updated, the malware-domain feed is pinned and validated before caching, and packaged Chrome workflows now run reliably on current Puppeteer.",
         },
     ];
 
@@ -53,7 +53,7 @@
             <div class="header-text">
                 <div class="eyebrow">Release Notes</div>
                 <h1>What&apos;s New in ZenithGuard</h1>
-                <p class="intro">This release keeps the momentum on clarity: cleaner architecture, sharper tools, and a safer packaged core so the extension feels easier to trust and easier to operate.</p>
+                <p class="intro">This release focuses on privacy, least-privilege permissions, and a smaller, safer extension surface.</p>
                 <span id="version-badge" class="version-badge">{version}</span>
             </div>
         </header>
@@ -61,20 +61,20 @@
         <section class="summary-strip">
             <div class="summary-card">
                 <span class="summary-label">Focus</span>
-                <strong>Tools + clarity</strong>
+                <strong>Privacy + security</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Work</span>
-                <strong>Architecture, tools, core rules</strong>
+                <strong>Permissions, storage, dependencies</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Outcome</span>
-                <strong>Cleaner, safer extension surface</strong>
+                <strong>Safer defaults and packaging</strong>
             </div>
         </section>
 
         <section class="changelog">
-            <h2>{version} - The Reporting and Compatibility Release</h2>
+            <h2>{version} - The Privacy and Hardening Release</h2>
             {#each changes as change}
                 <div class="change-item">
                     <div class="change-meta">

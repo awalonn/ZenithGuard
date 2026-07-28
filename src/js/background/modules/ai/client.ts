@@ -26,7 +26,7 @@ export type GeminiClient = {
 
 const GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
-const GEMINI_CLIENT_HEADER = "zenithguard-extension/3.2.2";
+const GEMINI_CLIENT_HEADER = "zenithguard-extension/3.3.0";
 
 let lastAiRequestAt = 0;
 let cachedClient: GeminiClient | null = null;

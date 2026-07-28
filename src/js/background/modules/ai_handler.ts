@@ -25,8 +25,6 @@ import {
     COOKIE_CONSENT_RESPONSE_SCHEMA,
     HIDE_WITH_AI_RESPONSE_SCHEMA,
     NETWORK_SUMMARY_RESPONSE_SCHEMA,
-    PRIVACY_POLICY_RESPONSE_SCHEMA,
-    PRIVACY_POLICY_SYSTEM_PROMPT,
     SELF_HEAL_RESPONSE_SCHEMA,
     buildWallFixPrompt,
     WALL_FIX_RESPONSE_SCHEMA,
@@ -94,13 +92,6 @@ type AnalyzePageOutput = {
     darkPatterns?: Array<Record<string, unknown>>;
 };
 
-type PrivacyPolicySummary = {
-    summary?: string;
-    dataCollected?: string[];
-    sharedWith?: string[];
-    error?: string;
-};
-
 export type RecoveredAiModule = {
     analyzePage: (tabId: number, pageUrl: string, networkLogs: NetworkLogEntry[]) => Promise<AnalyzePageResult>;
     handleHideElementWithAI: (
@@ -112,7 +103,6 @@ export type RecoveredAiModule = {
         onProgress?: (message: string) => Promise<void>,
     ) => Promise<WallFixResult>;
     handleCookieConsent: (tabId: number) => Promise<CookieConsentResult>;
-    handleSummarizePrivacyPolicy: (policyUrl: string) => Promise<PrivacyPolicySummary>;
     resetAiClient: () => Promise<void>;
     handleSelfHealRule: (
         selector: string,
@@ -124,7 +114,6 @@ export type RecoveredAiModule = {
 
 const AI_TIMEOUT_MS = 40_000;
 const WALL_FIX_TIMEOUT_MS = 60_000;
-const PRIVACY_POLICY_FETCH_TIMEOUT_MS = 15_000;
 const CAPTURE_FOCUS_DELAY_MS = 500;
 const MAX_AUDIT_HISTORY = 50;
 const WALL_FIX_VISIBLE_TEXT_LIMIT = 900;
@@ -608,16 +597,6 @@ function buildAnalyzerNetworkLogLines(pageUrl: string, networkLogs: NetworkLogEn
     ).slice(0, AI_NETWORK_LOG_LIMIT);
 }
 
-function extractTextFromHtml(html: string): string {
-    try {
-        const document = new DOMParser().parseFromString(html, "text/html");
-        document.querySelectorAll("script, style, noscript, svg, img, video, meta, link").forEach((node) => node.remove());
-        return (document.body?.innerText || "").replace(/\s+/g, " ").trim();
-    } catch {
-        return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-    }
-}
-
 function buildRecoveredAiModule(): RecoveredAiModule {
     return {
         async analyzePage(tabId, pageUrl, networkLogs) {
@@ -754,49 +733,6 @@ function buildRecoveredAiModule(): RecoveredAiModule {
                     return { result: { selector: null, action: null } };
                 }
                 return mapAiError(error, "Cookie Consent");
-            }
-        },
-
-        async handleSummarizePrivacyPolicy(policyUrl) {
-            try {
-                const response = await fetch(policyUrl, { signal: AbortSignal.timeout(PRIVACY_POLICY_FETCH_TIMEOUT_MS) });
-                if (!response.ok) {
-                    throw new Error("Could not fetch the policy page.");
-                }
-
-                const html = await response.text();
-                const text = extractTextFromHtml(html).slice(0, 15_000);
-                const request: GeminiGenerateContentRequest = {
-                    model: await getActiveGeminiModel(),
-                    contents: [
-                        {
-                            role: "user",
-                            parts: [
-                                {
-                                    text: `Privacy Policy Text from ${getDisplayUrl(policyUrl)}:\n\n${text}`,
-                                },
-                            ],
-                        },
-                    ],
-                    config: {
-                        systemInstruction: {
-                            parts: [{ text: PRIVACY_POLICY_SYSTEM_PROMPT }],
-                        },
-                        responseMimeType: "application/json",
-                        responseSchema: PRIVACY_POLICY_RESPONSE_SCHEMA,
-                        temperature: 0,
-                    },
-                };
-
-                return await generateJson<PrivacyPolicySummary>(request, {
-                    summary: "",
-                    dataCollected: [],
-                    sharedWith: [],
-                });
-            } catch (error) {
-                const message = getErrorMessage(error);
-                console.error("ZenithGuard: AI Analysis failed", message);
-                return { error: message || "Analysis failed." };
             }
         },
 

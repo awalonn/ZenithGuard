@@ -3,6 +3,7 @@ import { findMatchingStringIndex, hostnamesMatch } from "../../js/shared/hostnam
 import { normalizeCustomHidingRuleBuckets, normalizePersistentWallFixMap, normalizeTemporaryWallFixMap } from "../../js/shared/site_bucket_maps";
 import { sendContentMessage, sendMessage, type CookieConsentResponse, type DefeatAdblockWallResponse } from "../../js/shared/runtime_messages";
 import { getLocal, getSync, removeLocal, removeSync, setLocal, setSync } from "../../js/shared/storage_api";
+import { requestBrowsingDataPermission } from "../../js/shared/optional_permissions";
 import { buildReviewCandidateList, buildSiteReportPackage } from "./site_report";
 import { mapAiToolError, mapToolLaunchError } from "./tool_activity";
 import type { PageToolActionType, PopupSnapshot, SitePolicyState, TemporaryWallFix, ToolActivityEntry, ToolStatusCard } from "./types";
@@ -211,7 +212,12 @@ export async function toggleSiteRule(
     key: "isolationModeSites" | "forgetfulSites",
     hostname: string,
     tabId?: number | null,
+    enableFeature = false,
 ): Promise<void> {
+    if (key === "forgetfulSites" && enableFeature) {
+        await requestBrowsingDataPermission();
+    }
+
     const snapshot = await getSync<Record<string, Array<{ value: string; enabled: boolean }>>>(key);
     const current = Array.isArray(snapshot[key]) ? [...snapshot[key]] : [];
     const existing = findMatchingToggleableRule(current, hostname);

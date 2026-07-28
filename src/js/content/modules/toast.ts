@@ -76,7 +76,10 @@ export function showToast(options: ToastOptions): void {
         toast.id = id;
     }
     toast.className = `zg-toast zg-toast-${type}`;
-    toast.innerHTML = `${getIcon(type)}<span>ZenithGuard: ${message}</span>`;
+    toast.innerHTML = getIcon(type);
+    const messageElement = document.createElement("span");
+    messageElement.textContent = `ZenithGuard: ${message}`;
+    toast.appendChild(messageElement);
     container.appendChild(toast);
 
     if (resolvedDuration > 0) {

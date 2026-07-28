@@ -76,16 +76,6 @@ export const HIDE_WITH_AI_RESPONSE_SCHEMA: GeminiSchemaNode = {
     required: ["selector"],
 };
 
-export const PRIVACY_POLICY_RESPONSE_SCHEMA: GeminiSchemaNode = {
-    type: TYPE.OBJECT,
-    properties: {
-        summary: STRING_SCHEMA,
-        dataCollected: { type: TYPE.ARRAY, items: STRING_SCHEMA },
-        sharedWith: { type: TYPE.ARRAY, items: STRING_SCHEMA },
-    },
-    required: ["summary", "dataCollected", "sharedWith"],
-};
-
 export const SELF_HEAL_RESPONSE_SCHEMA: GeminiSchemaNode = {
     type: TYPE.OBJECT,
     properties: {
@@ -146,13 +136,6 @@ ${contextLines ? `Context:\n${contextLines}\n` : ""}Based on the screenshot, ret
 Prefer stable attributes, data attributes, ids, or structural selectors.
 Avoid selectors for html, body, root app containers, and avoid overly broad selectors.`;
 }
-
-export const PRIVACY_POLICY_SYSTEM_PROMPT = `You summarize privacy policies for normal users.
-Keep the summary factual, short, and plain.
-- summary: 2 to 4 sentences describing the main privacy behavior.
-- dataCollected: concrete categories of data mentioned.
-- sharedWith: who the policy says data may be shared with.
-Return strict JSON.`;
 
 export function buildSelfHealPrompt(pageUrl: string, oldSelector: string): string {
     return `On the webpage at ${pageUrl}, the following CSS selector was used to hide an unwanted element, but it no longer works: "${oldSelector}".

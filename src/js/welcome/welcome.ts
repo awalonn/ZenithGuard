@@ -1,6 +1,6 @@
 import { closeCurrentTabOrWindow } from "../shared/browser";
 import { notifyApiKeyUpdated } from "../shared/runtime_messages";
-import { setSync } from "../shared/storage_api";
+import { setLocal } from "../shared/storage_api";
 
 type ToastType = "success" | "error" | "info";
 
@@ -46,7 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         try {
-            await setSync({ geminiApiKey: apiKey });
+            await setLocal({ geminiApiKey: apiKey });
             notifyApiKeyUpdated();
             showToast("Setup complete! You are ready to go.", "success");
             saveButton.textContent = "Saved";

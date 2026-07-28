@@ -9,8 +9,6 @@ export const BACKGROUND_ACTION_MESSAGE_TYPES = [
     "HIDE_ELEMENT_WITH_AI",
     "DEFEAT_ADBLOCK_WALL",
     "HANDLE_COOKIE_CONSENT",
-    "SUMMARIZE_PRIVACY_POLICY",
-    "FOUND_PRIVACY_POLICY_URL",
     "API_KEY_UPDATED",
     "SELF_HEAL_RULE",
     "GET_NETWORK_LOG",
@@ -55,7 +53,6 @@ export type BackgroundActionMessage =
     | { type: "HIDE_ELEMENT_WITH_AI"; data: { description: string; context?: Record<string, unknown> } }
     | { type: "DEFEAT_ADBLOCK_WALL"; data: { tabId: number } }
     | { type: "HANDLE_COOKIE_CONSENT"; data: { tabId: number } }
-    | { type: "SUMMARIZE_PRIVACY_POLICY" | "FOUND_PRIVACY_POLICY_URL"; data: { domain: string; policyUrl: string } }
     | { type: "SELF_HEAL_RULE"; data: { selector: string; pageUrl: string } }
     | { type: "GET_NETWORK_LOG" | "CLEAR_NETWORK_LOG"; tabId?: number }
     | { type: "ADD_TO_NETWORK_BLOCKLIST"; domain: string; source?: NetworkBlocklistSource }
@@ -259,13 +256,6 @@ export async function selfHealRule(selector: string, pageUrl: string): Promise<S
     return sendMessage({
         type: "SELF_HEAL_RULE",
         data: { selector, pageUrl },
-    });
-}
-
-export function notifyPrivacyPolicyFound(domain: string, policyUrl: string): void {
-    sendMessageSafely({
-        type: "FOUND_PRIVACY_POLICY_URL",
-        data: { domain, policyUrl },
     });
 }
 

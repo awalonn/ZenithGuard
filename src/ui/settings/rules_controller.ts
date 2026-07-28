@@ -11,6 +11,7 @@ import {
 } from "../../js/background/modules/storage/defaults";
 import { findMatchingRecordEntry, hostnamesMatch, listHasMatchingHostname } from "../../js/shared/hostname_matching";
 import { getCanonicalNetworkBlockMetaKey, normalizeNetworkBlocklistMetaRecord } from "../../js/shared/network_blocklist_meta";
+import { requestBrowsingDataPermission } from "../../js/shared/optional_permissions";
 import { sendMessageSafely } from "../../js/shared/runtime_messages";
 import { getLocal, setLocal, setSync } from "../../js/shared/storage_api";
 import type {
@@ -435,7 +436,14 @@ export async function persistStringList(key: "disabledSites" | "focusBlocklist",
     await setSync({ [key]: values });
 }
 
-export async function persistToggleableList(key: ToggleableRuleListKey, values: ToggleableRule[]): Promise<void> {
+export async function persistToggleableList(
+    key: ToggleableRuleListKey,
+    values: ToggleableRule[],
+    requestBrowsingDataAccess = false,
+): Promise<void> {
+    if (key === "forgetfulSites" && requestBrowsingDataAccess) {
+        await requestBrowsingDataPermission();
+    }
     await setSync({ [key]: key === "defaultBlocklist" ? getDefaultBlocklistOverrides(values) : values });
 }
 

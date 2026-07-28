@@ -1,4 +1,4 @@
-import { getSync } from "../../../shared/storage_api";
+import { getLocal, getSync } from "../../../shared/storage_api";
 import { DEFAULT_GEMINI_MODEL, GLOBAL_AI_RATE_LIMIT_MS, resolveGeminiModel } from "./config";
 
 export type GeminiGenerateContentConfig = {
@@ -203,7 +203,7 @@ export async function getGeminiClient(): Promise<GeminiClient> {
         return cachedClient;
     }
 
-    const { geminiApiKey } = await getSync<{ geminiApiKey?: string }>("geminiApiKey");
+    const { geminiApiKey } = await getLocal<{ geminiApiKey?: string }>("geminiApiKey");
     if (!geminiApiKey) {
         throw new Error("Gemini API key is not set. Please set it in the extension settings.");
     }

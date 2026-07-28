@@ -44,7 +44,6 @@ function createMockAiModule(overrides: Partial<AiModule>): AiModule {
         handleHideElementWithAI: jest.fn(async () => ({})),
         handleDefeatAdblockWall: jest.fn(async () => ({})),
         handleCookieConsent: jest.fn(async () => ({})),
-        handleSummarizePrivacyPolicy: jest.fn(async () => ({})),
         resetAiClient: jest.fn(() => {}),
         handleSelfHealRule: jest.fn(async () => ({})),
         ...overrides,
@@ -231,31 +230,4 @@ describe("ai action registry", () => {
         });
     });
 
-    it("stores privacy-policy summaries under the apex cache key", async () => {
-        const aiModule = createMockAiModule({
-            handleSummarizePrivacyPolicy: jest.fn(async () => ({
-                summary: "This site shares data with ad partners.",
-            })),
-        });
-
-        const registry = createAiActionRegistry({
-            getNetworkLogs: () => [],
-            getAiModule: async () => aiModule,
-        });
-
-        await registry.actions.SUMMARIZE_PRIVACY_POLICY({
-            data: {
-                domain: "www.washingtonpost.com",
-                policyUrl: "https://www.washingtonpost.com/privacy-policy/",
-            },
-        });
-
-        expect(setLocal).toHaveBeenCalledWith({
-            "privacy-summary-washingtonpost.com": expect.objectContaining({
-                summary: {
-                    summary: "This site shares data with ad partners.",
-                },
-            }),
-        });
-    });
 });

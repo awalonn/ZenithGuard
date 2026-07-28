@@ -1,6 +1,6 @@
 import { closeCurrentTabOrWindow, openOptionsPage } from "../shared/browser";
 import { notifyApiKeyUpdated } from "../shared/runtime_messages";
-import { getSync, setSync } from "../shared/storage_api";
+import { getSync, setLocal } from "../shared/storage_api";
 
 document.addEventListener("DOMContentLoaded", async () => {
     const apiKeyInput = document.getElementById("api-key-input") as HTMLInputElement | null;
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
             saveButton.disabled = true;
             saveButton.textContent = "Saving...";
-            await setSync({ geminiApiKey: apiKey });
+            await setLocal({ geminiApiKey: apiKey });
             notifyApiKeyUpdated();
             initialSetup?.classList.add("hidden");
             successMessage?.classList.remove("hidden");

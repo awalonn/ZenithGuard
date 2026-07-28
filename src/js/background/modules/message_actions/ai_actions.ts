@@ -38,7 +38,6 @@ export type AiModule = {
         onProgress?: (message: string) => Promise<void>,
     ) => Promise<{ error?: string; selectors?: Record<string, unknown> }>;
     handleCookieConsent: (tabId: number) => Promise<{ error?: string; result?: { selector?: string | null; action?: string | null } }>;
-    handleSummarizePrivacyPolicy: (policyUrl: string) => Promise<{ error?: string } | Record<string, unknown>>;
     resetAiClient: () => void | Promise<void>;
     handleSelfHealRule: (selector: string, tabId: number, pageUrl: string) => Promise<unknown>;
     handleGenerateNetworkSummary?: (networkLogs: NetworkLogEntry[], domain: string) => Promise<{ summary?: string; error?: string }>;
@@ -55,8 +54,6 @@ type AiActionRegistry = {
         HIDE_ELEMENT_WITH_AI: (message: { data: { description: string; context?: Record<string, unknown> } }, sender: chrome.runtime.MessageSender) => Promise<unknown>;
         DEFEAT_ADBLOCK_WALL: (message: { data: { tabId: number } }) => Promise<unknown>;
         HANDLE_COOKIE_CONSENT: (message: { data: { tabId: number } }) => Promise<unknown>;
-        SUMMARIZE_PRIVACY_POLICY: (message: { data: { domain: string; policyUrl: string } }) => Promise<unknown>;
-        FOUND_PRIVACY_POLICY_URL: (message: { data: { domain: string; policyUrl: string } }) => Promise<{ queued: true }>;
         API_KEY_UPDATED: () => Promise<{ success: true }>;
         SELF_HEAL_RULE: (message: { data: { selector: string; pageUrl: string } }, sender: chrome.runtime.MessageSender) => Promise<unknown>;
         CLASSIFY_TEXT_LOCALLY: (message: { data: { text: string } }) => Promise<LocalAiClassificationResult>;
@@ -334,41 +331,6 @@ function markAnalysisRun(tabId: number, now = Date.now()): boolean {
 
 function clearAnalysisCooldown(tabId: number): void {
     analysisCooldown.delete(tabId);
-}
-
-function getPrivacySummaryCacheKey(domain: string): string {
-    const normalizedDomain = String(domain || "").trim().toLowerCase();
-    const scopeDomain = normalizedDomain.startsWith("www.")
-        ? normalizedDomain.slice(4)
-        : normalizedDomain;
-    return `privacy-summary-${scopeDomain}`;
-}
-
-async function cachePrivacySummary(getAiModule: () => Promise<AiModule>, domain: string, policyUrl: string): Promise<unknown> {
-    const cacheKey = getPrivacySummaryCacheKey(domain);
-    try {
-        const result = await (await getAiModule()).handleSummarizePrivacyPolicy(policyUrl);
-        if ((result as { error?: string }).error) {
-            throw new Error((result as { error: string }).error);
-        }
-
-        await setLocal({
-            [cacheKey]: {
-                summary: result,
-                timestamp: Date.now(),
-            },
-        });
-        return result;
-    } catch (error) {
-        const message = getErrorMessage(error);
-        await setLocal({
-            [cacheKey]: {
-                error: message,
-                timestamp: Date.now(),
-            },
-        });
-        return { error: message };
-    }
 }
 
 async function broadcastToTabFrames(tabId: number, message: ContentMessage): Promise<number> {
@@ -826,15 +788,6 @@ export function createAiActionRegistry(deps: AiActionDeps): AiActionRegistry {
                 } catch (error) {
                     return mapAiError(error, "Cookie Consent");
                 }
-            },
-
-            SUMMARIZE_PRIVACY_POLICY: async (message) => {
-                return cachePrivacySummary(deps.getAiModule, message.data.domain, message.data.policyUrl);
-            },
-
-            FOUND_PRIVACY_POLICY_URL: async (message) => {
-                void cachePrivacySummary(deps.getAiModule, message.data.domain, message.data.policyUrl);
-                return { queued: true };
             },
 
             API_KEY_UPDATED: async () => {

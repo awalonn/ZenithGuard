@@ -138,31 +138,23 @@ function validateTabDataMessage<T extends "ANALYZE_PAGE_WITH_AI" | "DEFEAT_ADBLO
     } as ValidatedMessage);
 }
 
-function validateStringPairMessage<T extends "SUMMARIZE_PRIVACY_POLICY" | "FOUND_PRIVACY_POLICY_URL" | "SELF_HEAL_RULE">(
-    type: T,
-    payload: unknown,
-    firstKey: string,
-    secondKey: string,
-    errorMessage: string,
-): ValidationResult<ValidatedMessage> {
+function validateSelfHealMessage(payload: unknown): ValidationResult<ValidatedMessage> {
+    const errorMessage = "SELF_HEAL_RULE requires data.selector:string and data.pageUrl:string.";
     const result = validatePayloadObject(payload, errorMessage);
     if (!result.ok) {
         return toErrorResult(getValidationError(result, errorMessage));
     }
 
-    const firstValue = result.message[firstKey];
-    const secondValue = result.message[secondKey];
-    if (!isNonEmptyString(firstValue) || !isNonEmptyString(secondValue)) {
+    const selector = result.message.selector;
+    const pageUrl = result.message.pageUrl;
+    if (!isNonEmptyString(selector) || !isNonEmptyString(pageUrl)) {
         return toErrorResult(errorMessage);
     }
 
     return toSuccessResult({
-        type,
-        data: {
-            [firstKey]: firstValue,
-            [secondKey]: secondValue,
-        },
-    } as ValidatedMessage);
+        type: "SELF_HEAL_RULE",
+        data: { selector, pageUrl },
+    });
 }
 
 function validateStringFieldDataMessage<T extends "HIDE_ELEMENT_WITH_AI" | "CLASSIFY_TEXT_LOCALLY">(
@@ -350,23 +342,8 @@ export function validateRuntimeMessage(message: unknown): ValidationResult<Valid
         case "DEFEAT_ADBLOCK_WALL":
         case "HANDLE_COOKIE_CONSENT":
             return validateTabDataMessage(type, message.data, `${type} requires data.tabId:number.`);
-        case "SUMMARIZE_PRIVACY_POLICY":
-        case "FOUND_PRIVACY_POLICY_URL":
-            return validateStringPairMessage(
-                type,
-                message.data,
-                "domain",
-                "policyUrl",
-                `${type} requires data.domain:string and data.policyUrl:string.`,
-            );
         case "SELF_HEAL_RULE":
-            return validateStringPairMessage(
-                type,
-                message.data,
-                "selector",
-                "pageUrl",
-                "SELF_HEAL_RULE requires data.selector:string and data.pageUrl:string.",
-            );
+            return validateSelfHealMessage(message.data);
         case "GET_NETWORK_LOG":
         case "CLEAR_NETWORK_LOG":
             return validateOptionalTabMessage(

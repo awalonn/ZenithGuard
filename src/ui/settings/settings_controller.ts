@@ -31,7 +31,6 @@ import type {
 
 const EXPORTABLE_SYNC_KEYS = [
     "theme",
-    "geminiApiKey",
     "geminiModel",
     "geminiModelOverride",
     ...Object.keys(getInitialSettingsSnapshot()),
@@ -297,7 +296,6 @@ function buildExportableSyncSnapshot(snapshot: Record<string, unknown>): Record<
 
     return {
         theme: snapshot.theme === "light" ? "light" : "dark",
-        geminiApiKey: typeof snapshot.geminiApiKey === "string" ? snapshot.geminiApiKey : "",
         geminiModel: typeof snapshot.geminiModel === "string" ? snapshot.geminiModel : "",
         geminiModelOverride: typeof snapshot.geminiModelOverride === "string" ? snapshot.geminiModelOverride : "",
         isProtectionEnabled: snapshot.isProtectionEnabled !== false,
@@ -469,7 +467,7 @@ export async function resumeProtection(): Promise<string> {
 }
 
 export async function saveGeminiApiKey(apiKey: string): Promise<void> {
-    await setSync({ geminiApiKey: apiKey.trim() });
+    await setLocal({ geminiApiKey: apiKey.trim() });
     notifyApiKeyUpdated();
 }
 
@@ -519,10 +517,6 @@ export async function importSettingsSnapshot(file: File): Promise<string> {
 
     if (nextLocal) {
         await setLocal(nextLocal);
-    }
-
-    if ("geminiApiKey" in nextSync) {
-        notifyApiKeyUpdated();
     }
 
     sendMessageSafely({ type: "APPLY_ALL_RULES" });

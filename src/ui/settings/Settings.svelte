@@ -122,7 +122,10 @@
             loadDashboardSnapshot(),
             loadExtensionHealthSnapshot(),
             loadActiveTabDiagnosticsContext(),
-            chrome.storage.sync.get(["geminiApiKey", "geminiModel", "geminiModelOverride"]),
+            Promise.all([
+                chrome.storage.local.get("geminiApiKey"),
+                chrome.storage.sync.get(["geminiModel", "geminiModelOverride"]),
+            ]).then(([localSnapshot, syncSnapshot]) => ({ ...syncSnapshot, ...localSnapshot })),
         ]);
 
         settings = nextSettings;

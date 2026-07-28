@@ -91,6 +91,36 @@ describe("popup action helpers", () => {
         });
     });
 
+    it("requests browsing-data access before enabling Forgetful Browsing", async () => {
+        const request = jest.fn(async () => true);
+        (globalThis as { chrome?: typeof chrome }).chrome = {
+            permissions: { request },
+        } as unknown as typeof chrome;
+        (getSync as any).mockResolvedValue({ forgetfulSites: [] });
+        (setSync as any).mockResolvedValue(undefined);
+        (sendMessage as any).mockResolvedValue(undefined);
+
+        await popupActions.toggleSiteRule("forgetfulSites", "example.com", null, true);
+
+        expect(request).toHaveBeenCalledWith({ permissions: ["browsingData"] });
+        expect(setSync).toHaveBeenCalledWith({
+            forgetfulSites: [{ value: "example.com", enabled: true }],
+        });
+    });
+
+    it("does not enable Forgetful Browsing when browsing-data access is denied", async () => {
+        (globalThis as { chrome?: typeof chrome }).chrome = {
+            permissions: { request: jest.fn(async () => false) },
+        } as unknown as typeof chrome;
+
+        await expect(
+            popupActions.toggleSiteRule("forgetfulSites", "example.com", null, true),
+        ).rejects.toThrow("needs permission");
+
+        expect(getSync).not.toHaveBeenCalled();
+        expect(setSync).not.toHaveBeenCalled();
+    });
+
     it("maps Fix Cookies Gemini-key failures into an actionable settings card", async () => {
         (getLocal as any).mockResolvedValue({ toolActivityLog: [] });
         (sendMessage as any).mockResolvedValue({

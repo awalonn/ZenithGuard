@@ -1,4 +1,4 @@
-import { getLocal, getSync, removeLocal, setLocal, setSync, updateSync } from "../../../shared/storage_api";
+import { getLocal, getSync, removeSync, setLocal, setSync, updateSync } from "../../../shared/storage_api";
 import {
     DEFAULT_HEURISTIC_KEYWORDS,
     REMOVED_HEURISTIC_KEYWORDS,
@@ -261,12 +261,13 @@ async function migrateGeminiApiKey(): Promise<void> {
     ]);
 
     const normalizedLocalKey = typeof localApiKey === "string" ? localApiKey.trim() : "";
-    if (!syncApiKey && normalizedLocalKey) {
-        await setSync({ geminiApiKey: normalizedLocalKey });
+    const normalizedSyncKey = typeof syncApiKey === "string" ? syncApiKey.trim() : "";
+    if (!normalizedLocalKey && normalizedSyncKey) {
+        await setLocal({ geminiApiKey: normalizedSyncKey });
     }
 
-    if (localApiKey !== undefined) {
-        await removeLocal("geminiApiKey");
+    if (syncApiKey !== undefined) {
+        await removeSync("geminiApiKey");
     }
 }
 

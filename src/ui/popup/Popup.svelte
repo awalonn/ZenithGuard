@@ -160,7 +160,12 @@
     async function handleForgetfulToggle(): Promise<void> {
         if (!snapshot || snapshot.isExtensionPage) return;
         await withRefresh(async () => {
-            await toggleSiteRule("forgetfulSites", snapshot.hostname, snapshot.tabId);
+            await toggleSiteRule(
+                "forgetfulSites",
+                snapshot.hostname,
+                snapshot.tabId,
+                !policy?.isForgetfulBrowsingEnabled,
+            );
         });
     }
 

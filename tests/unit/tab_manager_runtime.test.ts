@@ -16,6 +16,9 @@ describe("tab_manager_runtime", () => {
     beforeEach(() => {
         getSync.mockReset();
         (globalThis as { chrome?: typeof chrome }).chrome = {
+            permissions: {
+                contains: jest.fn(async () => true),
+            },
             browsingData: {
                 remove: (jest.fn() as any).mockResolvedValue(undefined),
             },

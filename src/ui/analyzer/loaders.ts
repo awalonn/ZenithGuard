@@ -11,7 +11,7 @@ export async function loadAnalyzerContext(tabIdFromQuery?: number | null): Promi
     const [activeTab, modelSnapshot, apiKeySnapshot] = await Promise.all([
         tabIdFromQuery ? getTabById(tabIdFromQuery) : getActiveTab(),
         getSync<{ geminiModel?: string; geminiModelOverride?: string }>(["geminiModel", "geminiModelOverride"]),
-        getSync<{ geminiApiKey?: string }>("geminiApiKey"),
+        getLocal<{ geminiApiKey?: string }>("geminiApiKey"),
     ]);
 
     const tabId = typeof activeTab?.id === "number" ? activeTab.id : null;

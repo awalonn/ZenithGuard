@@ -238,8 +238,8 @@ async function handleAddForgetfulDomain(): Promise<void> {
   try {
     const result = addDomainRule(ensureSnapshot().forgetfulSites, newForgetfulDomain, "Forgetful Browsing is already enabled for this domain.");
     newForgetfulDomain = result.nextValue;
+    await persistToggleableList("forgetfulSites", result.nextList, true);
     updateSnapshot({ forgetfulSites: result.nextList });
-    await persistToggleableList("forgetfulSites", result.nextList);
   } catch (error) {
     showError(error);
   }
@@ -254,14 +254,22 @@ async function handleRemoveForgetfulDomain(domain: string): Promise<void> {
 
 async function handleToggleForgetful(index: number, enabled: boolean): Promise<void> {
   const next = toggleRuleAtIndex(ensureSnapshot().forgetfulSites, index, enabled);
-  updateSnapshot({ forgetfulSites: next });
-  await persistToggleableList("forgetfulSites", next);
+  try {
+    await persistToggleableList("forgetfulSites", next, enabled);
+    updateSnapshot({ forgetfulSites: next });
+  } catch (error) {
+    showError(error);
+  }
 }
 
 async function handleBulkForgetful(enabled: boolean): Promise<void> {
   const next = toggleRulesByIndexes(ensureSnapshot().forgetfulSites, forgetfulSites.map(({ index }) => index), enabled);
-  updateSnapshot({ forgetfulSites: next });
-  await persistToggleableList("forgetfulSites", next);
+  try {
+    await persistToggleableList("forgetfulSites", next, enabled);
+    updateSnapshot({ forgetfulSites: next });
+  } catch (error) {
+    showError(error);
+  }
 }
 async function handleToggleWallFix(domain: string, enabled: boolean): Promise<void> {
   const next = toggleWallFix(ensureSnapshot().persistentWallFixes, domain, enabled);
@@ -435,8 +443,8 @@ async function handleEnableCurrentForgetful(): Promise<void> {
   if (!currentRulesDomain) return;
   try {
     const result = addDomainRule(ensureSnapshot().forgetfulSites, currentRulesDomain, "Forgetful Browsing is already enabled for this domain.");
+    await persistToggleableList("forgetfulSites", result.nextList, true);
     updateSnapshot({ forgetfulSites: result.nextList });
-    await persistToggleableList("forgetfulSites", result.nextList);
   } catch (error) {
     showError(error);
   }

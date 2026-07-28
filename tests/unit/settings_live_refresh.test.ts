@@ -65,7 +65,7 @@ describe("settings live refresh", () => {
                 oldValue: "",
                 newValue: "secret",
             },
-        }, "sync");
+        }, "local");
         await Promise.resolve();
 
         listeners.storageChangedListeners[0]?.({

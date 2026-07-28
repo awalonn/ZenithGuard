@@ -49,7 +49,7 @@ describe("packaged popup site report", () => {
 
         try {
             browser = await puppeteer.launch({
-                headless: "new",
+                headless: true,
                 userDataDir: profileDir,
                 ignoreDefaultArgs: ["--disable-extensions", "--disable-component-extensions-with-background-pages"],
                 args: packagedExtensionLaunchArgs(extensionPath),
@@ -175,7 +175,7 @@ describe("packaged popup site report", () => {
 
         try {
             browser = await puppeteer.launch({
-                headless: "new",
+                headless: true,
                 userDataDir: profileDir,
                 ignoreDefaultArgs: ["--disable-extensions", "--disable-component-extensions-with-background-pages"],
                 args: packagedExtensionLaunchArgs(extensionPath),

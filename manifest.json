@@ -9,12 +9,13 @@
     "declarativeNetRequest",
     "declarativeNetRequestFeedback",
     "scripting",
-    "activeTab",
     "tabs",
     "alarms",
     "webRequest",
     "webNavigation",
-    "contextMenus",
+    "contextMenus"
+  ],
+  "optional_permissions": [
     "browsingData"
   ],
   "host_permissions": [
@@ -80,14 +81,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "css/content.css",
         "css/theme.css",
-        "js/yt_interceptor.js",
-        "js/inspector.js",
-        "js/zapper.js",
-        "js/ai_hider.js",
-        "js/policy_finder.js",
-        "js/toast.js"
+        "js/yt_interceptor.js"
       ],
       "matches": [
         "<all_urls>"
@@ -124,6 +119,6 @@
     }
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    "extension_pages": "script-src 'self'; object-src 'self';"
   }
 }

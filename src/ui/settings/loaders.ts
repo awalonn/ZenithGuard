@@ -41,8 +41,7 @@ const SETTINGS_KEYS: Array<CoreSettingId | "theme"> = [
     "theme",
 ];
 
-const SETTINGS_AI_KEYS = [
-    "geminiApiKey",
+const SETTINGS_SYNC_AI_KEYS = [
     "geminiModel",
     "geminiModelOverride",
 ] as const;
@@ -366,13 +365,13 @@ export function shouldRefreshSettingsData(changes: Record<string, chrome.storage
     if (areaName === "sync") {
         return Object.keys(changes).some((key) =>
             SETTINGS_KEYS.includes(key as CoreSettingId | "theme")
-            || SETTINGS_AI_KEYS.includes(key as typeof SETTINGS_AI_KEYS[number])
+            || SETTINGS_SYNC_AI_KEYS.includes(key as typeof SETTINGS_SYNC_AI_KEYS[number])
             || RULE_SNAPSHOT_KEYS.includes(key as typeof RULE_SNAPSHOT_KEYS[number]),
         );
     }
 
     if (areaName === "local") {
-        return Boolean(changes[MALWARE_CACHE_KEY] || changes.networkBlocklistMeta || changes.toolActivityLog);
+        return Boolean(changes[MALWARE_CACHE_KEY] || changes.networkBlocklistMeta || changes.toolActivityLog || changes.geminiApiKey);
     }
 
     return false;

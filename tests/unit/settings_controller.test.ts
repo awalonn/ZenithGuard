@@ -138,6 +138,7 @@ describe("settings import/export", () => {
 
         const blob = (URL.createObjectURL as jest.Mock).mock.calls[0]?.[0] as Blob;
         const exported = JSON.parse(await readBlobText(blob));
+        expect(exported.sync).not.toHaveProperty("geminiApiKey");
 
         expect(exported).toMatchObject({
             format: "zenithguard-settings-backup",
@@ -228,7 +229,8 @@ describe("settings import/export", () => {
                 "html-load.cc": { source: "settings", addedAt: 20 },
             },
         });
-        expect(notifyApiKeyUpdated).toHaveBeenCalled();
+        expect(setSync).not.toHaveBeenCalledWith(expect.objectContaining({ geminiApiKey: expect.anything() }));
+        expect(notifyApiKeyUpdated).not.toHaveBeenCalled();
         expect(sendMessageSafely).toHaveBeenCalledWith({ type: "APPLY_ALL_RULES" });
         expect(sendMessageSafely).toHaveBeenCalledWith({ type: "REAPPLY_HIDING_RULES" });
     });

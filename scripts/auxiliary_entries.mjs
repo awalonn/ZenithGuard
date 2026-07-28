@@ -23,30 +23,6 @@ export const AUXILIARY_ENTRY_DEFINITIONS = [
         name: "ZenithGuardAiHiderEntry",
     },
     {
-        entry: "src/js/inspector.ts",
-        outFile: "js/inspector.js",
-        format: "iife",
-        name: "ZenithGuardInspectorEntry",
-    },
-    {
-        entry: "src/js/zapper.ts",
-        outFile: "js/zapper.js",
-        format: "iife",
-        name: "ZenithGuardZapperEntry",
-    },
-    {
-        entry: "src/js/toast.ts",
-        outFile: "js/toast.js",
-        format: "iife",
-        name: "ZenithGuardToastEntry",
-    },
-    {
-        entry: "src/js/policy_finder.ts",
-        outFile: "js/policy_finder.js",
-        format: "iife",
-        name: "ZenithGuardPolicyFinder",
-    },
-    {
         entry: "src/js/yt_interceptor.ts",
         outFile: "js/yt_interceptor.js",
         format: "iife",

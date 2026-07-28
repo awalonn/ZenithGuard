@@ -1,4 +1,5 @@
 import { listHasMatchingHostname } from "../../shared/hostname_matching";
+import { hasBrowsingDataPermission } from "../../shared/optional_permissions";
 import { getSync } from "../../shared/storage_api";
 import { sendContentMessageSafely } from "../../shared/runtime_messages";
 
@@ -117,6 +118,10 @@ export async function handleForgetfulTabRemoval(tabId: number): Promise<void> {
             .map((rule) => normalizeHostname(rule.value));
 
         if (!matchesTrackedDomain(parsedUrl.hostname, enabledRules)) {
+            return;
+        }
+
+        if (!(await hasBrowsingDataPermission())) {
             return;
         }
 

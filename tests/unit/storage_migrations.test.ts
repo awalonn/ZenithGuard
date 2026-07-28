@@ -4,6 +4,7 @@ import { getInitialSettingsSnapshot, getDefaultBlocklistEntries, getDefaultHeuri
 const getLocal: any = jest.fn();
 const getSync: any = jest.fn();
 const removeLocal: any = jest.fn();
+const removeSync: any = jest.fn();
 const setLocal: any = jest.fn();
 const setSync: any = jest.fn();
 const updateSync: any = jest.fn();
@@ -12,6 +13,7 @@ jest.unstable_mockModule("../../src/js/shared/storage_api", () => ({
     getLocal,
     getSync,
     removeLocal,
+    removeSync,
     setLocal,
     setSync,
     updateSync,
@@ -24,6 +26,7 @@ describe("storage migrations", () => {
         getLocal.mockReset();
         getSync.mockReset();
         removeLocal.mockReset();
+        removeSync.mockReset();
         setLocal.mockReset();
         setSync.mockReset();
         updateSync.mockReset();

@@ -370,23 +370,34 @@ export class Inspector {
 
         const requests = this.findAssociatedRequests(element);
         if (requests.length > 0) {
-            requestList.innerHTML = requests.map((request) => {
+            const fragment = document.createDocumentFragment();
+            for (const request of requests) {
                 let domain = request.url;
                 try {
                     domain = new URL(request.url).hostname;
                 } catch {
                     // Keep raw URL fallback.
                 }
+
                 const blocked = request.status === "blocked";
-                return `
-                    <div class="zg-hud-request-item" title="${request.url}">
-                        <span class="domain">${domain}</span>
-                        <button class="zg-hud-btn zg-hud-block-btn" data-domain="${domain}" ${blocked ? "disabled" : ""}>
-                            ${blocked ? "Blocked" : "Block"}
-                        </button>
-                    </div>
-                `;
-            }).join("");
+                const item = document.createElement("div");
+                item.className = "zg-hud-request-item";
+                item.title = request.url;
+
+                const domainElement = document.createElement("span");
+                domainElement.className = "domain";
+                domainElement.textContent = domain;
+
+                const blockButton = document.createElement("button");
+                blockButton.className = "zg-hud-btn zg-hud-block-btn";
+                blockButton.dataset.domain = domain;
+                blockButton.disabled = blocked;
+                blockButton.textContent = blocked ? "Blocked" : "Block";
+
+                item.append(domainElement, blockButton);
+                fragment.appendChild(item);
+            }
+            requestList.replaceChildren(fragment);
             return;
         }
 
@@ -394,11 +405,16 @@ export class Inspector {
             || element.hasAttribute("onclick")
             || element.getAttribute("role") === "button";
 
-        let emptyState = '<div class="zg-hud-no-requests">No direct network requests found for this element.</div>';
+        const emptyState = document.createElement("div");
+        emptyState.className = "zg-hud-no-requests";
+        emptyState.textContent = "No direct network requests found for this element.";
+        requestList.replaceChildren(emptyState);
         if (interactive) {
-            emptyState += '<div class="zg-hud-script-note">Note: Actions on this element may be handled by page-level scripts.</div>';
+            const scriptNote = document.createElement("div");
+            scriptNote.className = "zg-hud-script-note";
+            scriptNote.textContent = "Note: Actions on this element may be handled by page-level scripts.";
+            requestList.appendChild(scriptNote);
         }
-        requestList.innerHTML = emptyState;
     }
 
     private findAssociatedRequests(element: HTMLElement): AssociatedRequest[] {

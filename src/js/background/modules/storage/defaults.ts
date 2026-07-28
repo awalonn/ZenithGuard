@@ -14,8 +14,9 @@ export type ValidationReason =
 
 export const MALWARE_CACHE_KEY = "malware-list-cache";
 export const MALWARE_DATA_FIELD = "domains";
-export const MALWARE_REMOTE_URL = "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts";
-export const MALWARE_SOURCE_LABEL = "StevenBlack hosts feed";
+export const MALWARE_REMOTE_REVISION = "56641ec920b3dda4a62901b7cdd4d6f4cca86ed9";
+export const MALWARE_REMOTE_URL = `https://raw.githubusercontent.com/StevenBlack/hosts/${MALWARE_REMOTE_REVISION}/hosts`;
+export const MALWARE_SOURCE_LABEL = `StevenBlack hosts feed (${MALWARE_REMOTE_REVISION.slice(0, 7)})`;
 export const MALWARE_SEED_PATH = "rules/malware_seed.json";
 
 const FOCUS_MODE_RULE_START_ID = 7_000;

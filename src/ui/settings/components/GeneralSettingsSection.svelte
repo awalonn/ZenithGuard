@@ -191,7 +191,8 @@
     <div class="settings-grid">
         <div class="setting-item full-span">
             <label for="gemini-api-key-input">Google Gemini API Key</label>
-            <p id="gemini-api-key-help" class="setting-description">Required for AI Self-Healing, Analytics, and Cookie AI. ZenithGuard stores this key only in this browser profile and sends page screenshots plus stripped page/request context when Gemini features run.</p>
+            <p id="gemini-api-key-help" class="setting-description">Required for AI Self-Healing, Analytics, and Cookie AI. ZenithGuard stores this key locally on this device and excludes it from settings backups. When you actively run a Gemini feature, the extension sends the data needed for that action—such as a page screenshot, URL, page text, selector context, or request URLs—to Google Gemini.</p>
+            <p class="setting-description"><a href="https://github.com/awalonn/ZenithGuard/blob/main/PRIVACY.md" target="_blank" rel="noopener noreferrer">Read the ZenithGuard Privacy Policy</a>.</p>
             <form class="api-key-form" on:submit|preventDefault={onSaveApiKey}>
                 <input id="gemini-api-key-input" type="password" bind:value={apiKey} placeholder="Enter your Gemini API key" aria-describedby="gemini-api-key-help" />
                 <button type="submit" class="btn btn-primary">Save</button>
@@ -223,7 +224,7 @@
     <div class="settings-grid">
         <div class="setting-item full-span local-ai-card">
             <label for="local-ai-test-input">Zero-Shot Text Classification (Transformers.js)</label>
-            <p class="setting-description">Test the local WebAssembly AI. This runs entirely in your browser without contacting Google Gemini. Paste a request URL, domain, or short log line rather than generic page copy.</p>
+            <p class="setting-description">Test the local heuristic classifier. This packaged JavaScript runs entirely in your browser without contacting Google Gemini. Paste a request URL, domain, or short log line rather than generic page copy.</p>
             <p class="setting-description table-note table-note-top">Good examples: `url: https://connect.facebook.net/en_US/fbevents.js`, `domain: hotjar.com`, `https://www.google-analytics.com/g/collect?v=2`.</p>
             {#if !isLocalAiTestAvailable}
                 <p class="setting-note caution">Enable Next-Gen AI Eradicator and disable Performance Mode to run this local AI test.</p>

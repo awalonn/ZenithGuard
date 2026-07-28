@@ -49,7 +49,7 @@ describe("packaged Logger to Settings workflow", () => {
 
         try {
             browser = await puppeteer.launch({
-                headless: "new",
+                headless: true,
                 userDataDir: profileDir,
                 ignoreDefaultArgs: ["--disable-extensions", "--disable-component-extensions-with-background-pages"],
                 args: packagedExtensionLaunchArgs(extensionPath),
@@ -79,7 +79,10 @@ describe("packaged Logger to Settings workflow", () => {
             const loggerTarget = await browser.waitForTarget((candidate) => candidate.url() === loggerUrl, { timeout: 10_000 });
             const logger = await loggerTarget.page();
             expect(logger).not.toBeNull();
-            await logger!.waitForFunction(() => document.body.innerText.includes("Network Interceptor Log"), { timeout: 10_000 });
+            await logger!.waitForFunction(() => {
+                const tabLabel = document.querySelector(".tab-highlight");
+                return tabLabel?.textContent?.trim() === "Logger Settings Workflow";
+            }, { timeout: 10_000 });
 
             await logger!.evaluate((tabId, initiator) => {
                 (chrome.runtime.onMessage as unknown as { dispatch: (message: unknown) => void }).dispatch({

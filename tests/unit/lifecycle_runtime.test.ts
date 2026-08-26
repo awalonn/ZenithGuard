@@ -20,7 +20,7 @@ function createAsyncMock(): jest.MockedFunction<() => Promise<void>> {
 }
 
 async function flushAsyncTasks(): Promise<void> {
-    for (let index = 0; index < 5; index += 1) {
+    for (let index = 0; index < 10; index += 1) {
         await Promise.resolve();
     }
 }
@@ -79,7 +79,7 @@ describe("attachLifecycleRuntime", () => {
         } as unknown as typeof chrome;
     });
 
-    it("registers lifecycle listeners and reconciles runtime state when the background loads", async () => {
+    it("registers lifecycle listeners without rebuilding rules on every service-worker load", async () => {
         attachLifecycleRuntime(deps);
 
         expect(chrome.runtime.onInstalled.addListener).toHaveBeenCalledTimes(1);
@@ -91,17 +91,28 @@ describe("attachLifecycleRuntime", () => {
 
         await flushAsyncTasks();
 
+        expect(deps.initializeSettings).not.toHaveBeenCalled();
+        expect(deps.migrateRules).not.toHaveBeenCalled();
+        expect(deps.setupContextMenus).not.toHaveBeenCalled();
+        expect(deps.applyRules).not.toHaveBeenCalled();
+        expect(refreshBackgroundSources).not.toHaveBeenCalled();
+        expect(openExtensionPage).not.toHaveBeenCalled();
+
+        (startupListener as () => void)();
+        await flushAsyncTasks();
+
         expect(deps.initializeSettings).toHaveBeenCalledTimes(1);
         expect(deps.migrateRules).toHaveBeenCalledTimes(1);
         expect(deps.setupContextMenus).toHaveBeenCalledTimes(1);
+        expect(refreshBackgroundSources).toHaveBeenCalledTimes(1);
         expect(deps.applyRules).toHaveBeenCalledTimes(1);
-        expect(refreshBackgroundSources).not.toHaveBeenCalled();
         expect(openExtensionPage).not.toHaveBeenCalled();
 
         const callOrder = [
             deps.initializeSettings.mock.invocationCallOrder[0],
             deps.migrateRules.mock.invocationCallOrder[0],
             deps.setupContextMenus.mock.invocationCallOrder[0],
+            refreshBackgroundSources.mock.invocationCallOrder[0],
             deps.applyRules.mock.invocationCallOrder[0],
         ];
         expect(callOrder).toEqual([...callOrder].sort((left, right) => left - right));

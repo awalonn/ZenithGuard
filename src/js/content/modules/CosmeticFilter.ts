@@ -511,7 +511,7 @@ export class CosmeticFilter {
             childList: true,
             subtree: true,
             attributes: true,
-            attributeFilter: ["class", "id", "data-ad-status", "data-ad-client", "data-ad-slot", "data-ad-unit", "data-ad-unit-path", "data-text-ad", "data-pla", "aria-label"],
+            attributeFilter: ["data-ad-status", "data-ad-client", "data-ad-slot", "data-ad-unit", "data-ad-unit-path", "data-text-ad", "data-pla"],
         });
         this.builtInCleanupObservedRoots.add(root);
     }
@@ -785,10 +785,8 @@ export class CosmeticFilter {
 
     private collapseBuiltInAdPlaceholders(): CleanupCollapseResult {
         const result: CleanupCollapseResult = { count: 0, hints: [] };
-        for (const selector of BUILT_IN_AD_SLOT_CLEANUP_SELECTORS) {
-            for (const node of this.findEverywhere(selector)) {
-                this.mergeCleanupResult(result, this.collapseElementAndContainers(node as HTMLElement));
-            }
+        for (const node of this.findEverywhere(BUILT_IN_AD_SLOT_CLEANUP_SELECTORS.join(", "))) {
+            this.mergeCleanupResult(result, this.collapseElementAndContainers(node as HTMLElement));
         }
         this.mergeCleanupResult(result, this.collapseGoogleSearchSponsoredResults());
         this.mergeCleanupResult(result, this.collapseEmptyAdContainers());
@@ -811,11 +809,9 @@ export class CosmeticFilter {
             "#bottomads [data-pla]",
             "#rhs [data-pla]",
         ];
-        for (const selector of explicitAdSelectors) {
-            for (const node of this.findEverywhere(selector)) {
-                if (node instanceof HTMLElement) {
-                    this.recordHiddenElement(result, node);
-                }
+        for (const node of this.findEverywhere(explicitAdSelectors.join(", "))) {
+            if (node instanceof HTMLElement) {
+                this.recordHiddenElement(result, node);
             }
         }
 
@@ -895,11 +891,9 @@ export class CosmeticFilter {
 
     private collapseEmptyAdContainers(): CleanupCollapseResult {
         const result: CleanupCollapseResult = { count: 0, hints: [] };
-        for (const selector of BUILT_IN_AD_CONTAINER_CLEANUP_SELECTORS) {
-            for (const node of this.findEverywhere(selector)) {
-                if (node instanceof HTMLElement && this.isAdOnlyContainer(node)) {
-                    this.mergeCleanupResult(result, this.collapseElementAndContainers(node));
-                }
+        for (const node of this.findEverywhere(BUILT_IN_AD_CONTAINER_CLEANUP_SELECTORS.join(", "))) {
+            if (node instanceof HTMLElement && this.isAdOnlyContainer(node)) {
+                this.mergeCleanupResult(result, this.collapseElementAndContainers(node));
             }
         }
         return result;

@@ -252,6 +252,38 @@ describe("applyRules", () => {
         expect(addRules.map((rule) => rule.condition.urlFilter)).not.toContain("||disabled.example^");
     });
 
+    it("skips replacing dynamic rules when the generated rules are unchanged", async () => {
+        (getSync as any).mockResolvedValue({
+            isProtectionEnabled: true,
+            isYouTubeAdBlockingEnabled: false,
+            isHeuristicEngineEnabled: false,
+            disabledSites: [],
+            defaultBlocklist: [],
+            heuristicKeywords: [],
+            heuristicAllowlist: [],
+            networkBlocklist: ["ads.example"],
+            isolationModeSites: [],
+            isMalwareProtectionEnabled: false,
+        });
+        (getSession as any).mockResolvedValue({ sessionAllowlist: [] });
+
+        await applyRules();
+        const firstAppliedRules = updateDynamicRules.mock.calls[0][0].addRules || [];
+        updateDynamicRules.mockClear();
+        (getDynamicRules as any).mockResolvedValue([...firstAppliedRules].reverse().map((rule) => ({
+            ...rule,
+            condition: {
+                ...rule.condition,
+                resourceTypes: [...(rule.condition.resourceTypes || [])].reverse(),
+            },
+        })));
+
+        await applyRules();
+
+        expect(updateDynamicRules).not.toHaveBeenCalled();
+        expect(setDynamicRuleMetadata).toHaveBeenCalledTimes(2);
+    });
+
     it("does not partially apply user allowlist groups when the dynamic rule budget is too small", async () => {
         const warnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
         setDynamicRuleBudget(2);

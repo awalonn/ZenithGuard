@@ -134,6 +134,14 @@ function collectManifestSurfaceErrors(manifest) {
         }
     }
 
+    const mainContentScript = (manifest.content_scripts || [])
+        .find((contentScript) => (contentScript.js || []).includes("js/content_bundle.js"));
+    if (!mainContentScript) {
+        errors.push("Manifest is missing the main content bundle registration");
+    } else if (mainContentScript.all_frames !== false) {
+        errors.push("Main content bundle must stay top-frame-only to avoid multiplying startup observers across restored iframes");
+    }
+
     for (const resourceGroup of manifest.web_accessible_resources || []) {
         for (const resourcePath of resourceGroup.resources || []) {
             if (resourcePath.startsWith("css/")) {

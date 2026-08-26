@@ -4,7 +4,7 @@ ZenithGuard is an MV3 browser extension for ad blocking, privacy controls, page 
 
 See the [ZenithGuard Privacy Policy](PRIVACY.md) for details about local processing, Chrome Sync, optional Gemini requests, and data retention.
 
-Current version: `3.3.0`.
+Current version: `3.3.1`.
 
 ## Development
 Use focused checks while iterating, then broader checks at meaningful checkpoints:

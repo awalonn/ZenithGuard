@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ZenithGuard",
-  "version": "3.3.0",
+  "version": "3.3.1",
   "description": "Advanced AI-powered Ad Blocker and Privacy Guard",
   "default_locale": "en",
   "permissions": [
@@ -115,7 +115,7 @@
         "js/content_bundle.js"
       ],
       "run_at": "document_start",
-      "all_frames": true
+      "all_frames": false
     }
   ],
   "content_security_policy": {

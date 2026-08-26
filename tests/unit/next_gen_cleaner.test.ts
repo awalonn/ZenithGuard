@@ -50,16 +50,17 @@ describe("NextGenCleaner", () => {
         cleaner.stop();
     });
 
-    it("cleans elements when a matching class is assigned after insertion", async () => {
+    it("uses CSS instead of observing every class change for late marker assignments", async () => {
         const cleaner = new NextGenCleaner();
         cleaner.start();
 
         const element = document.createElement("div");
         document.body.appendChild(element);
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
         element.className = "mgid-dynamic-slot";
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-        expect(element.style.getPropertyValue("display")).toBe("none");
+        expect(window.getComputedStyle(element).display).toBe("none");
         cleaner.stop();
     });
 

@@ -5,6 +5,11 @@ const CLEANUP_CANDIDATE_SELECTOR = [
     '[id*="mgid" i]',
     '[class*="mgid" i]',
 ].join(", ");
+const CLEANUP_STYLE_ID = "zenithguard-next-gen-cleaner-styles";
+const CLEANUP_STYLE = CLEANUP_CANDIDATE_SELECTOR
+    .split(", ")
+    .map((selector) => `${selector}:not([id^="zg-"]):not([class*="zg-"])`)
+    .join(", ");
 
 export class NextGenCleaner {
     private enabled = false;
@@ -16,12 +21,11 @@ export class NextGenCleaner {
         }
 
         this.enabled = true;
+        this.ensureCleanupStyle();
         this.observer = new MutationObserver((mutations) => this.handleMutations(mutations));
         this.observer.observe(document.documentElement, {
             childList: true,
             subtree: true,
-            attributes: true,
-            attributeFilter: ["id", "class"],
         });
         document.querySelectorAll(CLEANUP_CANDIDATE_SELECTOR).forEach((element) => this.processElement(element));
     }
@@ -34,6 +38,7 @@ export class NextGenCleaner {
         this.enabled = false;
         this.observer?.disconnect();
         this.observer = null;
+        document.getElementById(CLEANUP_STYLE_ID)?.remove();
     }
 
     private handleMutations(mutations: MutationRecord[]): void {
@@ -42,11 +47,6 @@ export class NextGenCleaner {
         }
 
         for (const mutation of mutations) {
-            if (mutation.type === "attributes" && mutation.target instanceof Element) {
-                this.processElement(mutation.target);
-                continue;
-            }
-
             if (mutation.type !== "childList") {
                 continue;
             }
@@ -57,6 +57,17 @@ export class NextGenCleaner {
                 }
             });
         }
+    }
+
+    private ensureCleanupStyle(): void {
+        if (document.getElementById(CLEANUP_STYLE_ID)) {
+            return;
+        }
+
+        const style = document.createElement("style");
+        style.id = CLEANUP_STYLE_ID;
+        style.textContent = `${CLEANUP_STYLE} { display: none !important; }`;
+        (document.head || document.documentElement).appendChild(style);
     }
 
     private processElementTree(element: Element): void {

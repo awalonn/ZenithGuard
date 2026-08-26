@@ -2,28 +2,28 @@
     import { onMount } from "svelte";
     import { closeCurrentTabOrWindow } from "../../js/shared/browser";
 
-    let version = "v3.3.0";
+    let version = "v3.3.1";
 
     const changes = [
         {
-            label: "Privacy",
-            title: "Sensitive settings stay on this device",
-            copy: "Gemini API keys now use local extension storage instead of Chrome Sync, backups exclude the key, and the extension includes a clear privacy policy.",
+            label: "Startup",
+            title: "One initialization per Chrome launch",
+            copy: "The background worker no longer rebuilds extension state whenever it wakes, eliminating duplicate rule work during profile startup.",
         },
         {
-            label: "Permissions",
-            title: "Browsing-data access is now optional",
-            copy: "Forgetful Browsing requests its extra permission only when you enable the feature, keeping the default installation footprint smaller.",
+            label: "Rules",
+            title: "Unchanged rules stay untouched",
+            copy: "ZenithGuard compares generated dynamic rules with Chrome's installed rules and skips the expensive remove-and-readd cycle when nothing changed.",
         },
         {
-            label: "Security",
-            title: "A tighter extension surface",
-            copy: "Unused externally accessible bundles and dormant policy-scanning code were removed, while dynamic interface content is now rendered through safer DOM APIs.",
+            label: "Pages",
+            title: "Heavy cleanup runs once per tab",
+            copy: "The full content runtime now stays in the top frame instead of starting another copy inside every iframe on restored pages.",
         },
         {
-            label: "Reliability",
-            title: "Dependencies and threat data refreshed",
-            copy: "Core tooling was updated, the malware-domain feed is pinned and validated before caching, and packaged Chrome workflows now run reliably on current Puppeteer.",
+            label: "Performance",
+            title: "DOM monitoring is more selective",
+            copy: "Broad class and ID observation was removed, native CSS handles late ad markers, and built-in cleanup performs fewer repeated whole-page scans.",
         },
     ];
 
@@ -53,7 +53,7 @@
             <div class="header-text">
                 <div class="eyebrow">Release Notes</div>
                 <h1>What&apos;s New in ZenithGuard</h1>
-                <p class="intro">This release focuses on privacy, least-privilege permissions, and a smaller, safer extension surface.</p>
+                <p class="intro">This patch reduces Chrome profile-launch work, especially when restoring many tabs and embedded frames.</p>
                 <span id="version-badge" class="version-badge">{version}</span>
             </div>
         </header>
@@ -61,20 +61,20 @@
         <section class="summary-strip">
             <div class="summary-card">
                 <span class="summary-label">Focus</span>
-                <strong>Privacy + security</strong>
+                <strong>Startup performance</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Work</span>
-                <strong>Permissions, storage, dependencies</strong>
+                <strong>Rules, frames, DOM observers</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Outcome</span>
-                <strong>Safer defaults and packaging</strong>
+                <strong>Less work during profile launch</strong>
             </div>
         </section>
 
         <section class="changelog">
-            <h2>{version} - The Privacy and Hardening Release</h2>
+            <h2>{version} - The Startup Performance Release</h2>
             {#each changes as change}
                 <div class="change-item">
                     <div class="change-meta">

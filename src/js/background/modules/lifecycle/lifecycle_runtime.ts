@@ -8,13 +8,6 @@ function logLifecycleFailure(stage: string, error: unknown): void {
 
 export type LifecycleRuntimeDeps = InstallHandlerDeps & StartupHandlerDeps & AlarmHandlerDeps;
 
-async function ensureRuntimeState(deps: LifecycleRuntimeDeps): Promise<void> {
-    await deps.initializeSettings();
-    await deps.migrateRules();
-    await deps.setupContextMenus();
-    await deps.applyRules();
-}
-
 export function attachLifecycleRuntime(deps: LifecycleRuntimeDeps): void {
     chrome.runtime.onInstalled.addListener((details) => {
         handleInstalled(details, deps).catch((error) => logLifecycleFailure("onInstalled", error));
@@ -27,6 +20,4 @@ export function attachLifecycleRuntime(deps: LifecycleRuntimeDeps): void {
     chrome.alarms.onAlarm.addListener((alarm) => {
         handleAlarm(alarm, deps).catch((error) => logLifecycleFailure(`onAlarm:${alarm.name}`, error));
     });
-
-    ensureRuntimeState(deps).catch((error) => logLifecycleFailure("background-load", error));
 }

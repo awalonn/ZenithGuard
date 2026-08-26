@@ -546,6 +546,40 @@ export type ApplyRulesResult = {
     youtubeRulesEnabled: boolean;
 };
 
+function canonicalizeRuleValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value
+            .map(canonicalizeRuleValue)
+            .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    }
+
+    if (!value || typeof value !== "object") {
+        return value;
+    }
+
+    return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+            .filter(([, entryValue]) => entryValue !== undefined)
+            .sort(([left], [right]) => left.localeCompare(right))
+            .map(([key, entryValue]) => [key, canonicalizeRuleValue(entryValue)]),
+    );
+}
+
+function haveEquivalentDynamicRules(
+    existingRules: chrome.declarativeNetRequest.Rule[],
+    desiredRules: chrome.declarativeNetRequest.Rule[],
+): boolean {
+    if (existingRules.length !== desiredRules.length) {
+        return false;
+    }
+
+    const byId = (rules: chrome.declarativeNetRequest.Rule[]) => [...rules]
+        .sort((left, right) => left.id - right.id)
+        .map(canonicalizeRuleValue);
+
+    return JSON.stringify(byId(existingRules)) === JSON.stringify(byId(desiredRules));
+}
+
 export async function applyRules(): Promise<ApplyRulesResult> {
     const existingDynamicRules = await chrome.declarativeNetRequest.getDynamicRules();
     const settings = await getSync<RuleSettingsSnapshot>([
@@ -706,13 +740,20 @@ export async function applyRules(): Promise<ApplyRulesResult> {
     }
 
     const dedupedDynamicRules = Array.from(new Map(dynamicRules.map((rule) => [rule.id, rule])).values());
-    await chrome.declarativeNetRequest.updateDynamicRules({
-        removeRuleIds: existingDynamicRules.map((rule) => rule.id),
-        addRules: dedupedDynamicRules,
-    });
+    const rulesChanged = !haveEquivalentDynamicRules(existingDynamicRules, dedupedDynamicRules);
+    if (rulesChanged) {
+        await chrome.declarativeNetRequest.updateDynamicRules({
+            removeRuleIds: existingDynamicRules.map((rule) => rule.id),
+            addRules: dedupedDynamicRules,
+        });
+    }
 
     setDynamicRuleMetadata(dynamicMetadata);
-    console.info(`ZenithGuard: Applying ${dedupedDynamicRules.length} dynamic rules.`);
+    console.info(
+        rulesChanged
+            ? `ZenithGuard: Applied ${dedupedDynamicRules.length} dynamic rules.`
+            : `ZenithGuard: Dynamic rules already current (${dedupedDynamicRules.length}); skipped replacement.`,
+    );
 
     return {
         dynamicRuleCount: dedupedDynamicRules.length,

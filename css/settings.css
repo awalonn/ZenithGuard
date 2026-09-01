@@ -559,6 +559,22 @@ body {
     margin-top: 1rem;
 }
 
+.add-rule-form {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.add-rule-form input {
+    min-width: 0;
+    flex: 1 1 240px;
+}
+
+.add-rule-form .btn {
+    flex: 0 0 auto;
+}
+
 .api-key-form input,
 .add-subscription-form input,
 .add-rule-form input,

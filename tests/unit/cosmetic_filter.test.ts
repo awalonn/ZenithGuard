@@ -244,6 +244,21 @@ describe("CosmeticFilter", () => {
         }
     });
 
+    it("does not sandbox Google Identity Services frames", () => {
+        const identityFrame = document.createElement("iframe");
+        identityFrame.src = "https://accounts.google.com/gsi/button";
+        const ordinaryThirdPartyFrame = document.createElement("iframe");
+        ordinaryThirdPartyFrame.src = "https://embed.example/video";
+        document.body.append(identityFrame, ordinaryThirdPartyFrame);
+
+        const filter = new CosmeticFilter(jest.fn());
+        filter.applyIframeSandboxing();
+
+        expect(identityFrame.hasAttribute("sandbox")).toBe(false);
+        expect(ordinaryThirdPartyFrame.getAttribute("sandbox"))
+            .toBe("allow-scripts allow-same-origin allow-presentation allow-popups allow-forms");
+    });
+
     it("keeps cleanup active for late ad shells inserted inside open shadow roots", async () => {
         jest.useFakeTimers();
 

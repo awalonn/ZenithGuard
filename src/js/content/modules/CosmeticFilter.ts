@@ -1,6 +1,7 @@
 ﻿import { getLocal, getSync, setLocal, setSync } from "../../shared/storage_api";
 import { findMatchingRecordEntry } from "../../shared/hostname_matching";
 import { normalizeCustomHidingRuleBuckets } from "../../shared/site_bucket_maps";
+import { isGoogleIdentityHostname } from "../../shared/google_identity";
 import type { ToastOptions } from "./toast";
 
 export type HidingRule = {
@@ -393,7 +394,11 @@ export class CosmeticFilter {
                     continue;
                 }
                 const iframeHostname = new URL(iframe.src, window.location.href).hostname;
-                if (iframeHostname !== currentHostname && !iframe.hasAttribute("sandbox")) {
+                if (
+                    iframeHostname !== currentHostname
+                    && !isGoogleIdentityHostname(iframeHostname)
+                    && !iframe.hasAttribute("sandbox")
+                ) {
                     iframe.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation allow-popups allow-forms");
                 }
             } catch {

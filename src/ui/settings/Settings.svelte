@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { CORE_PROTECTION_SETTINGS, GEMINI_MODEL_PRESETS, SETTINGS_NAV_ITEMS } from "./config";
+    import { DEFAULT_GEMINI_MODEL, normalizeGeminiModel } from "../../js/background/modules/ai/config";
     import { loadDashboardSnapshot, loadExtensionHealthSnapshot, loadMalwareFeedStatus, loadRulesSnapshot, loadSettingsSnapshot } from "./loaders";
     import { attachSettingsLiveRefresh } from "./live_refresh";
     import Sidebar from "./components/Sidebar.svelte";
@@ -88,7 +89,7 @@
     let diagnosticsPreview: DiagnosticsPreviewItem[] = [];
 
     let apiKey = "";
-    let geminiModel = "gemini-2.5-flash";
+    let geminiModel = DEFAULT_GEMINI_MODEL;
     let geminiModelOverride = "";
     let localAiText = "url: https://connect.facebook.net/en_US/fbevents.js";
     let localAiLoading = false;
@@ -137,7 +138,7 @@
         diagnosticsNetworkSummary = await loadDiagnosticsNetworkSummary(nextDiagnosticsSiteContext);
         isDarkMode = settings.theme !== "light";
         apiKey = typeof keySnapshot.geminiApiKey === "string" ? keySnapshot.geminiApiKey : "";
-        geminiModel = typeof keySnapshot.geminiModel === "string" ? keySnapshot.geminiModel : "gemini-2.5-flash";
+        geminiModel = normalizeGeminiModel(typeof keySnapshot.geminiModel === "string" ? keySnapshot.geminiModel : DEFAULT_GEMINI_MODEL);
         geminiModelOverride = typeof keySnapshot.geminiModelOverride === "string" ? keySnapshot.geminiModelOverride : "";
         applySettingsTheme(isDarkMode);
     }

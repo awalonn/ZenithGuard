@@ -1,4 +1,5 @@
 import { hostnamesMatch } from "../../shared/hostname_matching";
+import { isGoogleIdentityHostname, isGoogleIdentityUrl } from "../../shared/google_identity";
 import { getLocal, setLocal } from "../../shared/storage_api";
 
 type PopupGuardOptions = {
@@ -139,13 +140,17 @@ export class PopupGuard {
             return true;
         }
 
+        if (isGoogleIdentityUrl(url, this.getHref())) {
+            return false;
+        }
+
         if (timestamp - this.lastExplicitLinkGestureAt <= PLAYER_GESTURE_WINDOW_MS) {
             return false;
         }
 
         const destinationHostname = this.getDestinationHostname(url);
         if (!destinationHostname) {
-            return true;
+            return !isGoogleIdentityHostname(this.getHostname());
         }
 
         return !hostnamesMatch(this.getHostname(), destinationHostname);

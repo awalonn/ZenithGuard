@@ -38,7 +38,7 @@ describe("settings live refresh", () => {
         expect(shouldRefreshSettingsData({
             geminiModelOverride: {
                 oldValue: "",
-                newValue: "gemini-2.5-pro",
+                newValue: "gemini-3.1-pro-preview",
             },
         }, "sync")).toBe(true);
 

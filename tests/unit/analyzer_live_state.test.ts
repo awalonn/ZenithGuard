@@ -12,7 +12,7 @@ function createContext(overrides: Partial<AnalyzerScanContext> = {}): AnalyzerSc
         pageTitle: "Article",
         pageUrl: "https://example.com/article",
         hostname: "example.com",
-        activeModel: "gemini-2.5-flash",
+        activeModel: "gemini-3.7-flash",
         apiKeyPresent: true,
         ...overrides,
     };

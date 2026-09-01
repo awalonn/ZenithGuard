@@ -112,6 +112,38 @@ describe("PopupGuard", () => {
         guard.stop();
     });
 
+    it("allows a user-triggered Google Identity popup", () => {
+        const button = document.createElement("button");
+        button.textContent = "Continue with Google";
+        document.body.appendChild(button);
+        const guard = createGuard();
+        guard.start();
+
+        dispatchTrustedPointer(button);
+        const result = window.open("https://accounts.google.com/o/oauth2/v2/auth?client_id=test", "_blank");
+
+        expect(result).not.toBeNull();
+        expect(openMock).toHaveBeenCalledWith(
+            "https://accounts.google.com/o/oauth2/v2/auth?client_id=test",
+            "_blank",
+            undefined,
+        );
+
+        guard.stop();
+    });
+
+    it("still blocks Google Identity popups without a user gesture", () => {
+        const guard = createGuard();
+        guard.start();
+
+        const result = window.open("https://accounts.google.com/o/oauth2/v2/auth?client_id=test", "_blank");
+
+        expect(result).toBeNull();
+        expect(openMock).not.toHaveBeenCalled();
+
+        guard.stop();
+    });
+
     it("blocks blank popups immediately after video-player clicks", () => {
         const video = document.createElement("video");
         document.body.appendChild(video);

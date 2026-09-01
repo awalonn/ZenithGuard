@@ -207,7 +207,7 @@
             </div>
             <p class="setting-description">If AI Studio exposes a model id before ZenithGuard ships it as a preset, paste it below and ZenithGuard will use it directly.</p>
             <div class="api-key-form top-gap-small">
-                <input type="text" bind:value={geminiModelOverride} placeholder="Optional custom model id (for example: gemini-3.1-flash-lite-preview)" aria-label="Custom Gemini model id" />
+                <input type="text" bind:value={geminiModelOverride} placeholder="Optional custom model id (for example: gemini-flash-latest)" aria-label="Custom Gemini model id" />
                 <button type="button" class="btn btn-secondary" on:click={onSaveGeminiModelOverride}>Save Custom ID</button>
             </div>
         </div>

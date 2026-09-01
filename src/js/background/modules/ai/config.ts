@@ -1,9 +1,10 @@
-export const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+export const DEFAULT_GEMINI_MODEL = "gemini-3.7-flash";
 
 export const GEMINI_MODEL_OPTIONS = [
-    { value: "gemini-2.5-flash", label: "Gemini 2.5 Flash (Recommended)" },
-    { value: "gemini-2.5-flash-lite-preview-09-2025", label: "Gemini 2.5 Flash Lite Preview" },
-    { value: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+    { value: "gemini-3.7-flash", label: "Gemini 3.7 Flash (Recommended)" },
+    { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+    { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash-Lite (Fast / Low Cost)" },
+    { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (Preview / Paid)" },
 ] as const;
 
 export const GLOBAL_AI_RATE_LIMIT_MS = 8_000;

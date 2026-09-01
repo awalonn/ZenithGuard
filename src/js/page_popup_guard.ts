@@ -1,3 +1,5 @@
+import { isGoogleIdentityHostname, isGoogleIdentityUrl } from "./shared/google_identity";
+
 (() => {
     const marker = "__zenithGuardPagePopupGuard";
     const state = window as Window & { [marker]?: boolean };
@@ -135,6 +137,13 @@
         if (!hasTrustedGesture) {
             emitBlocked(url, "no trusted gesture");
             return null;
+        }
+
+        if (
+            isGoogleIdentityUrl(url, window.location.href)
+            || (!destinationHostname(url) && isGoogleIdentityHostname(window.location.hostname))
+        ) {
+            return nativeOpen(url, target, features);
         }
 
         const isRecentPlayerGesture = timestamp - lastPlayerGestureAt <= playerGestureWindowMs;

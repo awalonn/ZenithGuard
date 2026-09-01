@@ -2,28 +2,28 @@
     import { onMount } from "svelte";
     import { closeCurrentTabOrWindow } from "../../js/shared/browser";
 
-    let version = "v3.3.1";
+    let version = "v3.3.2";
 
     const changes = [
         {
-            label: "Startup",
-            title: "One initialization per Chrome launch",
-            copy: "The background worker no longer rebuilds extension state whenever it wakes, eliminating duplicate rule work during profile startup.",
+            label: "Compatibility",
+            title: "Google sign-in works without pausing protection",
+            copy: "User-triggered Google OAuth windows and Google Identity button frames are allowed while unsolicited popups and advertising domains remain protected.",
         },
         {
-            label: "Rules",
-            title: "Unchanged rules stay untouched",
-            copy: "ZenithGuard compares generated dynamic rules with Chrome's installed rules and skips the expensive remove-and-readd cycle when nothing changed.",
+            label: "Gemini",
+            title: "Current Gemini models",
+            copy: "The model menu now includes Gemini 3.7 Flash, 3.6 Flash, 3.5 Flash-Lite, and 3.1 Pro Preview with a shared runtime-safe configuration.",
         },
         {
-            label: "Pages",
-            title: "Heavy cleanup runs once per tab",
-            copy: "The full content runtime now stays in the top frame instead of starting another copy inside every iframe on restored pages.",
+            label: "Migration",
+            title: "Obsolete AI presets recover automatically",
+            copy: "Removed presets fall back to the current default, and ZenithGuard omits sampling parameters no longer accepted by Gemini 3.x.",
         },
         {
-            label: "Performance",
-            title: "DOM monitoring is more selective",
-            copy: "Broad class and ID observation was removed, native CSS handles late ad markers, and built-in cleanup performs fewer repeated whole-page scans.",
+            label: "Settings",
+            title: "Cleaner rule forms",
+            copy: "Rule fields and action buttons now keep consistent spacing and wrap safely on narrower Settings windows.",
         },
     ];
 
@@ -53,7 +53,7 @@
             <div class="header-text">
                 <div class="eyebrow">Release Notes</div>
                 <h1>What&apos;s New in ZenithGuard</h1>
-                <p class="intro">This patch reduces Chrome profile-launch work, especially when restoring many tabs and embedded frames.</p>
+                <p class="intro">This patch restores Google sign-in compatibility, refreshes Gemini support, and polishes rule management.</p>
                 <span id="version-badge" class="version-badge">{version}</span>
             </div>
         </header>
@@ -61,20 +61,20 @@
         <section class="summary-strip">
             <div class="summary-card">
                 <span class="summary-label">Focus</span>
-                <strong>Startup performance</strong>
+                <strong>Login compatibility</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Work</span>
-                <strong>Rules, frames, DOM observers</strong>
+                <strong>OAuth, Gemini, Settings UI</strong>
             </div>
             <div class="summary-card">
                 <span class="summary-label">Outcome</span>
-                <strong>Less work during profile launch</strong>
+                <strong>Sign in without pausing protection</strong>
             </div>
         </section>
 
         <section class="changelog">
-            <h2>{version} - The Startup Performance Release</h2>
+            <h2>{version} - Compatibility &amp; AI Update</h2>
             {#each changes as change}
                 <div class="change-item">
                     <div class="change-meta">

@@ -4,6 +4,7 @@ import type {
     NavigationItem,
     SettingsSnapshot,
 } from "./types";
+import { GEMINI_MODEL_OPTIONS } from "../../js/background/modules/ai/config";
 
 export const SETTINGS_NAV_ITEMS: NavigationItem[] = [
     {
@@ -86,8 +87,4 @@ export const CORE_PROTECTION_SETTINGS: CoreSettingDefinition[] = [
     },
 ];
 
-export const GEMINI_MODEL_PRESETS: GeminiModelPreset[] = [
-    { value: "gemini-2.5-flash", label: "gemini-2.5-flash" },
-    { value: "gemini-2.5-flash-lite-preview-09-2025", label: "gemini-2.5-flash-lite-preview-09-2025" },
-    { value: "gemini-2.5-pro", label: "gemini-2.5-pro" },
-];
+export const GEMINI_MODEL_PRESETS: GeminiModelPreset[] = GEMINI_MODEL_OPTIONS.map((option) => ({ ...option }));

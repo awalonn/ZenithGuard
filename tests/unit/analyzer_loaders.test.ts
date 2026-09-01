@@ -24,7 +24,7 @@ jest.unstable_mockModule("../../src/js/shared/storage_api", () => ({
 }));
 
 jest.unstable_mockModule("../../src/js/background/modules/ai/config", () => ({
-    resolveGeminiModel: jest.fn(() => "gemini-2.5-flash"),
+    resolveGeminiModel: jest.fn(() => "gemini-3.7-flash"),
 }));
 
 const { loadAnalyzerSupportData } = await import("../../src/ui/analyzer/loaders");

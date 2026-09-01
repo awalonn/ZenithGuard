@@ -1,6 +1,6 @@
 {
   "name": "zenithguard",
-  "version": "3.3.1",
+  "version": "3.3.2",
   "description": "ZenithGuard - Advanced AI Ad & Privacy Blocker",
   "type": "module",
   "private": true,
@@ -13,6 +13,7 @@
     "check:surface": "node scripts/check_extension_surface.mjs && npm run check:dnr",
     "check:dist": "node scripts/check_dist_surface.mjs dist",
     "check:types": "svelte-check",
+    "capture:store": "node scripts/capture_store_screenshots.mjs",
     "scan:live": "node scripts/live_ad_scan.mjs",
     "build": "vite build && node scripts/build_auxiliary_entries.mjs dist",
     "build:firefox": "vite build --outDir dist-firefox && node scripts/build_auxiliary_entries.mjs dist-firefox && node scripts/build_firefox_manifest.cjs dist-firefox/manifest.json",

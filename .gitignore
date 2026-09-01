@@ -3,8 +3,8 @@ dist/
 dist-firefox/
 releases/
 coverage/
+store-assets/raw/
 .DS_Store
 Thumbs.db
 *.log
 *.zip
-

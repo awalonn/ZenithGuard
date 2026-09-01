@@ -26,7 +26,7 @@ export type GeminiClient = {
 
 const GEMINI_API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models/";
 const GEMINI_REQUEST_TIMEOUT_MS = 45_000;
-const GEMINI_CLIENT_HEADER = "zenithguard-extension/3.3.1";
+const GEMINI_CLIENT_HEADER = "zenithguard-extension/3.3.2";
 
 let lastAiRequestAt = 0;
 let cachedClient: GeminiClient | null = null;
@@ -77,6 +77,10 @@ export async function getActiveGeminiModel(): Promise<string> {
 
 export function buildGeminiGenerateContentUrl(model: string): string {
     return `${GEMINI_API_BASE_URL}${encodeURIComponent(model)}:generateContent`;
+}
+
+export function supportsLegacyGeminiSampling(model: string): boolean {
+    return model.trim().toLowerCase().startsWith("gemini-2.");
 }
 
 export function extractGeminiText(responsePayload: Record<string, unknown>): string {
@@ -143,7 +147,10 @@ export function createGeminiClient(apiKey: string): GeminiClient {
         models: {
             async generateContent(request: GeminiGenerateContentRequest): Promise<GeminiGenerateContentResponse> {
                 const generationConfig: Record<string, unknown> = {};
-                if (typeof request.config?.temperature === "number") {
+                if (
+                    typeof request.config?.temperature === "number"
+                    && supportsLegacyGeminiSampling(request.model)
+                ) {
                     generationConfig.temperature = request.config.temperature;
                 }
                 if (typeof request.config?.responseMimeType === "string") {

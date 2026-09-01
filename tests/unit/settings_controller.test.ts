@@ -90,7 +90,7 @@ describe("settings import/export", () => {
         getSync.mockResolvedValue({
             theme: "dark",
             geminiApiKey: "key",
-            geminiModel: "gemini-2.5-flash",
+            geminiModel: "gemini-3.7-flash",
             geminiModelOverride: "",
             isNextGenAIEradicatorEnabled: true,
             isYouTubeAdBlockingEnabled: true,
@@ -170,7 +170,7 @@ describe("settings import/export", () => {
             sync: {
                 theme: "light",
                 geminiApiKey: "key",
-                geminiModel: "gemini-2.5-flash",
+                geminiModel: "gemini-3.7-flash",
                 geminiModelOverride: "",
                 isNextGenAIEradicatorEnabled: true,
                 isYouTubeAdBlockingEnabled: true,
